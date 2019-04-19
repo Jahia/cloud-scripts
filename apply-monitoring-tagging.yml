@@ -1,0 +1,17 @@
+type: update
+version: 1.5
+name: Jahia - Apply monitoring configuration
+id: apply-monitoring-tagging
+description:
+  short: Jahia - Apply monitoring configuration
+  text: Provides automated Datadog tagging
+
+baseUrl: https://raw.githubusercontent.com/Jahia/jelastic-package-dev/master/dx7302
+
+onInstall:
+  - cmd [proc,cp,sqldb,es,unomi]:
+    - wget -O /usr/local/bin/set_dd_tags.sh ${baseUrl}/scripts/set_dd_tags.sh
+    - wget -O /etc/cron.d/set_dd_tags_cron ${baseUrl}/configs/set_dd_tags_cron
+    - chmod u+x /usr/local/bin/set_dd_tags.sh
+    - /usr/local/bin/set_dd_tags.sh
+    user: root
