@@ -1,0 +1,13 @@
+type: update
+version: 1.5
+name: Jahia - Performs integrity checks on each instance
+id: apply-integrity-test
+description:
+  short: Jahia - Performs integrity checks on each instance
+  text: Performs integrity checks on each instance
+
+onInstall:
+  - cmd [proc,cp,sqldb,es,unomi]:
+    - ls
+    user: root
+success: "success outcomes"
