@@ -4,14 +4,44 @@ version: 1.5
 name: Jahia - Snapshots an environment and stores it in a S3 bucket
 logo: /images/jahia-logo-70x70.png
 id: jahia-backup-to-s3
-baseUrl: https://github.com/Jahia/cloud-scripts/raw/backup-restore/scripts
+baseUrl: https://raw.githubusercontent.com/Jahia/cloud-scripts/master/backup-restore/scripts
 
 globals:
   defaultCredentials: root:root
   
 
 onInstall:
-  - cmd [proc, cp, sqldb]:
+  - cmd [proc]:
     - sudo yum install python-pip
     - pip install boto3
-    - wget ${baseUrl}/upload_to_s3.py.yml
+    - rm -f upload_to_s3.py
+    - wget ${baseUrl}/upload_to_s3.py
+  - cmd [proc]:
+    - tar -czvf digital-factory-data.tar.gz /data/digital-factory-data/
+    - python upload_to_s3.py digital-factory-data.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
+    - rm -f digital-factory-data.tar.gz
+    - mysqldump --user=$DB_USER --password=$DB_PASSWORD -h mysqldb --single-transaction --quote-names --opt --databases --compress jahia > jahia.sql
+    - tar -czvf jahia.sql.tar.gz jahia.sql
+    - python upload_to_s3.py jahia.sql.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
+    - rm -f jahia.sql jahia.sql.tar.gz
+    - tar -czvf digital-factory-config.tar.gz /opt/tomcat/conf/digital-factory-config/
+    - python upload_to_s3.py digital-factory-config.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
+    - rm -f digital-factory-config.tar.gz
+    
+settings:
+  fields: 
+  - name: backup_name
+    type: string
+    caption: Backup Name
+    vtype: text
+    required: true
+  - name: aws_access_key
+    type: string
+    caption: AWS Access Key
+    vtype: text
+    required: true
+  - name: aws_secret_key
+    type: string
+    caption: AWS Secret Key
+    vtype: text
+    required: true
