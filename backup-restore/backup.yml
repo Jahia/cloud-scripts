@@ -15,7 +15,7 @@ onInstall:
     - sudo yum install python-pip
     - pip install boto3
     - rm -f upload_to_s3.py
-    - wget ${baseUrl}/upload_to_s3.py
+    - wget ${baseUrl}/upload_to_s3.py?f=${fn.random}
   - cmd [proc]:
     - tar -czvf digital-factory-data.tar.gz /data/digital-factory-data/
     - python upload_to_s3.py digital-factory-data.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}

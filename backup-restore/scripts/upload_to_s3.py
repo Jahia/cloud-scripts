@@ -40,8 +40,8 @@ def upload_file(file_name, bucket, object_name=None):
         object_name = file_name
         
     # Upload the file
-    s3_client = boto3.client('s3', aws_access_key_id=sys.argv[2],
-         aws_secret_access_key=sys.argv[3])
+    s3_client = boto3.client('s3', aws_access_key_id=sys.argv[3],
+         aws_secret_access_key=sys.argv[4])
     try:
         response = s3_client.upload_file(file_name, bucket, object_name, Callback=ProgressPercentage(file_name))
     except ClientError as e:
@@ -50,4 +50,4 @@ def upload_file(file_name, bucket, object_name=None):
     return True
 
 print ("uploading file " + sys.argv[1])
-upload_file (sys.argv[1], 'paas-environment-backup', sys.argv[1])
+upload_file (sys.argv[1], 'paas-environment-backup', sys.argv[2]+"/"+sys.argv[1])
