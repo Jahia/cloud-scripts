@@ -1,0 +1,53 @@
+---
+type: update
+version: 1.5
+name: Jahia - Snapshots an environment and stores it in a S3 bucket
+logo: /images/jahia-logo-70x70.png
+id: jahia-backup-to-s3
+baseUrl: https://raw.githubusercontent.com/Jahia/cloud-scripts/master/backup-restore/scripts
+
+globals:
+  defaultCredentials: root:root
+  
+
+onInstall:
+  - cmd [proc,cp]:
+    - service tomcat stop
+    - rm -f download_from_s3.py*
+    - wget -O download_from_s3.py ${baseUrl}/download_from_s3.py?f=${fn.random}
+  - cmd [proc,cp]:
+    - python download_from_s3.py digital-factory-data.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
+    - rm -rf /data
+    - tar xf digital-factory-data.tar.gz -C /
+    - chown tomcat:tomcat -R /data
+    - rm digital-factory-data.tar.gz
+    - python download_from_s3.py digital-factory-config.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
+    - rm -rf /opt/tomcat/conf/conf/digital-factory-config
+    - tar xf digital-factory-config.tar.gz -C /opt/tomcat/conf
+    - chown tomcat:tomcat -R /opt/tomcat/conf
+    - rm -f digital-factory-config.tar.gz
+  - cmd [proc]:
+    - python download_from_s3.py jahia.sql.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
+    - tar xf jahia.sql.tar.gz 
+    - mysql -u$DB_USER -p$DB_PASSWORD -h mysqldb < jahia.sql; rm -f jahia.sql
+    - rm -f jahia.sql*
+  - cmd [proc,cp]:
+    - service tomcat start
+    
+settings:
+  fields: 
+  - name: backup_name
+    type: string
+    caption: Backup Name
+    vtype: text
+    required: true
+  - name: aws_access_key
+    type: string
+    caption: AWS Access Key
+    vtype: text
+    required: true
+  - name: aws_secret_key
+    type: string
+    caption: AWS Secret Key
+    vtype: text
+    required: true
