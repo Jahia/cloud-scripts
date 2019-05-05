@@ -1,0 +1,17 @@
+---
+type: update
+version: 1.5
+name: Jahia - Snapshots an environment and stores it in a S3 bucket
+logo: /images/jahia-logo-70x70.png
+id: jahia-backup-to-s3
+baseUrl: https://github.com/Jahia/cloud-scripts/raw/backup-restore/scripts
+
+globals:
+  defaultCredentials: root:root
+  
+
+onInstall:
+  - cmd [proc, cp, sqldb]:
+    - sudo yum install python-pip
+    - pip install boto3
+    - wget ${baseUrl}/upload_to_s3.py.yml

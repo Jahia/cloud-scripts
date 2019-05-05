@@ -10,4 +10,4 @@ onInstall:
   - cmd [proc,cp,sqldb,es,unomi]:
     - ls
     user: root
-success: "success outcomes"
+success: success outcomes ${fn.password(20)}
