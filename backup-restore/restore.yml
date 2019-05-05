@@ -1,9 +1,9 @@
 ---
 type: update
 version: 1.5
-name: Jahia - Snapshots an environment and stores it in a S3 bucket
+name: Jahia - Restores an environment from an S3 bucket
 logo: /images/jahia-logo-70x70.png
-id: jahia-backup-to-s3
+id: jahia-restore-from-s3
 baseUrl: https://raw.githubusercontent.com/Jahia/cloud-scripts/master/backup-restore/scripts
 
 globals:
