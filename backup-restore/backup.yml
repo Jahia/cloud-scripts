@@ -11,7 +11,7 @@ globals:
   
 
 onInstall:
-  - cmd [proc,cp]:
+  - cmd [proc]:
     - sudo yum install python-pip
     - pip install boto3
     - rm -f upload_to_s3.py*
@@ -20,7 +20,7 @@ onInstall:
     - tar -czvf digital-factory-data.tar.gz /data/digital-factory-data/
     - python upload_to_s3.py digital-factory-data.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
     - rm -f digital-factory-data.tar.gz
-    - mysqldump --user=$DB_USER --password=$DB_PASSWORD -h mysqldb --single-transaction --quote-names --opt --databases --compress jahia > jahia.sql
+    - mysqldump --hex-blob --user=$DB_USER --password=$DB_PASSWORD -h mysqldb --single-transaction --quote-names --opt --databases --compress jahia > jahia.sql
     - tar -czvf jahia.sql.tar.gz jahia.sql
     - python upload_to_s3.py jahia.sql.tar.gz ${settings.backup_name} ${settings.aws_access_key} ${settings.aws_secret_key}
     - rm -f jahia.sql jahia.sql.tar.gz
