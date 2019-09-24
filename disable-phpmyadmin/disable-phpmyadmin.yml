@@ -1,0 +1,35 @@
+---
+type: update
+version: 1.5
+name: Jahia - Stop httpd on database nodes and disable phpmyadmin in env vars
+id: disable-phpmyadmin
+
+baseUrl: https://raw.githubusercontent.com/Jahia/cloud-scripts/master
+
+nodes:
+  nodeGroup: sqldb
+
+onInstall:
+  - forEach(nodes.sqldb):
+      - script: |
+          var resp = jelastic.env.control.GetContainerEnvVars("${env.envName}",
+                                                              session,
+                                                              "${@i.id}");
+          if (resp.result != 0) return resp;
+          pma = resp.object.PHPMYADMIN_ENABLED
+          adm = resp.object.ADMINPANEL_ENABLED
+          return {result:0, onAfterReturn:{checkEnvVars:{pma:pma,
+                                                         adm:adm,
+                                                         id:"${@i.id}"}}}
+
+actions:
+  checkEnvVars:
+    - if (${this.pma} == true || ${this.adm} == true):
+        - api: env.control.AddContainerEnvVars
+          vars: {"ADMINPANEL_ENABLED":false, "PHPMYADMIN_ENABLED":false}
+          nodeid: ${this.id}
+        - cmd[${this.id}]: |-
+            service httpd stop
+            rm /etc/init.d/httpd
+            systemctl daemon-reload
+          user: root
