@@ -11,6 +11,8 @@ onInstall:
   - updateDatadogTomcatConfPermissions
   - changeDatadogAgentLogLevel
   - updateJournaldConf
+  - toolsPasswordHashToEnvVar
+  - increaseHttpHeaderSize
 
 actions:
   addRewritesAndAuthBasicSupport:
@@ -53,3 +55,16 @@ actions:
     cmd[cp,proc]: |-
       chown dd-agent: /etc/datadog-agent/conf.d/tomcat.d/conf.yaml
     user: root
+
+  toolsPasswordHashToEnvVar:
+    # PAAS-665
+    - cmd[proc]: |-
+        awk '$1=="jahiaToolManagerPassword" {print $NF}' $STACK_PATH/conf/digital-factory-config/jahia/jahia.properties
+    - setGlobals:
+        toolspwd: ${response.out}
+    - api[proc, cp]: env.control.AddContainerEnvVars
+      vars: {"MANAGER_PASSWORD": "${globals.toolspwd}"}
+
+  increaseHttpHeaderSize:
+    - cmd[cp,proc]: |-
+        sed -i "s/^\(.*Connector port=\"80.*HTTP.*\)$/\1\n\t\tmaxHttpHeaderSize=\"65536\"/g" /opt/tomcat/conf/server.xml
