@@ -1,0 +1,13 @@
+/opt/tomcat/logs/*.out
+/opt/tomcat/logs/*.log
+/opt/tomcat/logs/*.txt {
+        missingok
+        su tomcat tomcat
+        compress
+        copytruncate
+        rotate 14
+        daily
+        maxsize 500M
+        dateext
+        dateformat _%Y-%m-%d
+}

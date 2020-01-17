@@ -1,0 +1,70 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: upgrade-v1.2
+
+onInstall:
+  - addRewritesAndAuthBasicSupport
+  - addTomcatLogRotate
+  - updateDatadogTomcatConfPermissions
+  - changeDatadogAgentLogLevel
+  - updateJournaldConf
+  - toolsPasswordHashToEnvVar
+  - increaseHttpHeaderSize
+
+actions:
+  addRewritesAndAuthBasicSupport:
+    # PAAS-401 and PAAS-403
+    - cmd[bl]: |-
+        cp /etc/haproxy/haproxy.cfg.d/00-global.cfg /root/00-global.cfg.bak
+        wget -O /etc/haproxy/haproxy.cfg.d/00-global.cfg raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.10/configs/haproxy-00-global.cfg
+        chown -R haproxy:haproxy /etc/haproxy
+        service haproxy reload
+      user: root
+    - env.control.AddContainerEnvVars[bl]:
+      vars: {"auth_basic_enabled": "false"}
+
+  changeDatadogAgentLogLevel:
+    # PAAS-658
+    cmd[cp,proc]: |-
+      line=$(grep WARN /usr/local/bin/set_dd_tags.sh)
+      if [ -z "$line" ]; then
+        sed -i 's/\(echo \"logs_enabled: true\"\)/\1\necho \"log_level: WARN\"/g' /usr/local/bin/set_dd_tags.sh
+      fi
+      service datadog-agent restart
+    user: root
+  addTomcatLogRotate:
+    # PAAS-464
+    - cmd[cp,proc]: |-
+        wget -O /etc/logrotate.d/jahia_logrotate ${baseUrl}/jahia_logrotate
+      user: root
+    # PAAS-464 and PAAS-679
+    - cmd[cp,proc]: |-
+        wget -O $STACK_PATH/conf/logging.properties ${baseUrl}/logging.properties
+      user: root
+  updateJournaldConf:
+    # PAAS-730
+    - cmd[*]: |-
+        sed -i 's/.*SystemMaxUse=.*/SystemMaxUse=200M/g' /etc/systemd/journald.conf
+        systemctl restart systemd-journald.service
+      user: root
+  updateDatadogTomcatConfPermissions:
+    # PAAS-731
+    cmd[cp,proc]: |-
+      chown dd-agent: /etc/datadog-agent/conf.d/tomcat.d/conf.yaml
+    user: root
+
+  toolsPasswordHashToEnvVar:
+    # PAAS-665
+    - cmd[proc]: |-
+        awk '$1=="jahiaToolManagerPassword" {print $NF}' $STACK_PATH/conf/digital-factory-config/jahia/jahia.properties
+    - setGlobals:
+        toolspwd: ${response.out}
+    - api[proc, cp]: env.control.AddContainerEnvVars
+      vars: {"MANAGER_PASSWORD": "${globals.toolspwd}"}
+
+  increaseHttpHeaderSize:
+    - cmd[cp,proc]: |-
+        sed -i "s/^\(.*Connector port=\"80.*HTTP.*\)$/\1\n\t\tmaxHttpHeaderSize=\"65536\"/g" /opt/tomcat/conf/server.xml
