@@ -1,0 +1,85 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: upgrade-v1.3
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      - if (nodes.bl):  # Env ready for update
+          - installDatadogOnHaproxy
+          - updateMariaDBBuffer
+          - setJDBCToSequencialMode
+          - splitGCLogFile
+          - restartTomcat
+  - else:  # Unomi
+      - if (nodes.es):
+          - addElasticsearchBackupPlugin
+
+actions:
+  addElasticsearchBackupPlugin:
+    # PAAS-584
+    forEach(nodes.es):
+      cmd[${@i.id}]: |-
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install repository-azure
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install repository-s3
+        service elasticsearch restart
+        sleep 30
+
+  installDatadogOnHaproxy:
+    - api [bl]: env.control.AddContainerEnvVars
+      vars: {"envName": "${env.envName}"}
+    # PAAS-372
+    - cmd [bl]: |-
+        export $(cat /.jelenv | xargs)
+        haproxy_stats_pass=$(grep "auth admin" /etc/haproxy/haproxy.cfg.d/00-global.cfg |cut -d":" -f2)
+        BASE_URL="https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.11"
+        DD_API_KEY=DATADOGAPIKEY bash -c "$(curl -L https://raw.githubusercontent.com/DataDog/datadog-agent/master/cmd/agent/install_script.sh)"
+        NODE_NAME=${HOSTNAME/-*}
+        echo "hostname: $(echo $_ROLE| sed 's/_//g').${NODE_NAME#node}" >> /etc/datadog-agent/datadog.yaml
+        sed -i 's/# logs_enabled: false/logs_enabled: true/' /etc/datadog-agent/datadog.yaml
+        echo "tags:" >> /etc/datadog-agent/datadog.yaml
+        echo " - env:${PACKAGE_TYPE}" >> /etc/datadog-agent/datadog.yaml
+        echo " - product:jahia" >> /etc/datadog-agent/datadog.yaml
+        echo " - version:${DX_VERSION}" >> /etc/datadog-agent/datadog.yaml
+        echo " - envname:${env.envName}" >> /etc/datadog-agent/datadog.yaml
+        echo " - provide:${_PROVIDE}" >> /etc/datadog-agent/datadog.yaml
+        echo " - role:${_ROLE}" >> /etc/datadog-agent/datadog.yaml
+        echo " - envmode:${jahia_cfg_operatingMode}" >> /etc/datadog-agent/datadog.yaml
+        wget -O /etc/datadog-agent/conf.d/haproxy.d/conf.yaml $BASE_URL/configs/dd_agent_haproxy_conf.yml
+        sed -i "s/my_awesome_password/$haproxy_stats_pass/g" /etc/datadog-agent/conf.d/haproxy.d/conf.yaml
+        wget -O /etc/datadog-agent/conf.d/process.d/conf.yaml $BASE_URL/configs/dd_agent_process_conf.yml
+        wget -O /usr/local/bin/set_dd_tags.sh $BASE_URL/scripts/set_dd_tags.sh
+        wget -O /etc/cron.d/set_dd_tags_cron $BASE_URL/configs/set_dd_tags_cron
+        chmod u+x /usr/local/bin/set_dd_tags.sh
+        wget -O /etc/rsyslog.d/haproxy.conf $BASE_URL/configs/rsyslog_haproxy
+        chown root:dd-agent /var/log/haproxy/* && chmod 640 /var/log/haproxy/*
+        systemctl restart rsyslog crond datadog-agent
+      user: root
+
+  updateMariaDBBuffer:
+    # PAAS-848
+    - cmd[sqldb]: |-
+        printf "[mysqld]\nkey_buffer_size = 128M\nmyisam_sort_buffer_size = 128M" > /etc/mysql/conf.d/mysql.cnf
+        mysql -e "set global key_buffer_size = 128*1024*1024; set global myisam_sort_buffer_size = 128*1024*1024;"
+
+  splitGCLogFile:
+    - cmd[proc, cp]: |-
+        new_option="file=/opt/tomcat/logs/gc.log"
+        sed -i "s#gc::time#gc:$new_option:time#g" /opt/tomcat/conf/tomcat-env.sh
+
+  setJDBCToSequencialMode:
+    #  PAAS-874
+    - cmd[proc, cp]: |-
+        sed 's/loadbalance/sequential/' -i /$DATA_PATH/jahia/tomcat/webapps/ROOT/META-INF/context.xml
+
+  restartTomcat:
+    - forEach(nodes.cp):
+        cmd[${@i.id}]: |-
+          service tomcat restart
+          sleep 60
+        user: root
+    - cmd[proc]: |-
+        service tomcat restart
+      user: root
