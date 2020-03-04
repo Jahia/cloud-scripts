@@ -7,14 +7,15 @@ id: upgrade-v1.3
 
 onInstall:
   - if (nodes.proc):  # Jahia
-      - installDatadogOnHaproxy
-      - updateMariaDBBuffer
-      - setJDBCToSequencialMode
-      - splitGCLogFile
-      - restartTomcat
+      - if (nodes.bl):  # Env ready for update
+          - installDatadogOnHaproxy
+          - updateMariaDBBuffer
+          - setJDBCToSequencialMode
+          - splitGCLogFile
+          - restartTomcat
   - else:  # Unomi
-      - addElasticsearchBackupPlugin
-
+      - if (nodes.es):
+          - addElasticsearchBackupPlugin
 
 actions:
   addElasticsearchBackupPlugin:
