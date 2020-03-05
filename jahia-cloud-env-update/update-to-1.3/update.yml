@@ -10,9 +10,10 @@ onInstall:
       - if (nodes.bl):  # Env ready for update
           - installDatadogOnHaproxy
           - updateMariaDBBuffer
-          - setJDBCToSequencialMode
-          - splitGCLogFile
-          - restartTomcat
+          # Following steps already done by redeploy
+          #- setJDBCToSequencialMode
+          #- splitGCLogFile
+          #- restartTomcat
   - else:  # Unomi
       - if (nodes.es):
           - addElasticsearchBackupPlugin
@@ -72,7 +73,7 @@ actions:
   setJDBCToSequencialMode:
     #  PAAS-874
     - cmd[proc, cp]: |-
-        sed 's/loadbalance/sequential/' -i /$DATA_PATH/jahia/tomcat/webapps/ROOT/META-INF/context.xml
+        sed 's/loadbalance/sequential/' -i /opt/tomcat/webapps/ROOT/META-INF/context.xml
 
   restartTomcat:
     - forEach(nodes.cp):
