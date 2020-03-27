@@ -51,5 +51,4 @@ actions:
       - cmd[proc]: |-
             cd /data/digital-factory-data/karaf/etc/
             wget -O org.jahia.modules.api.permissions-tuto.cfg ${baseUrl}/org.jahia.modules.api.permissions-tuto.cfg
-            chown tomcat:tomcat org.jahia.modules.api.permissions-tuto.cfg
-        user: root
+        user: tomcat
