@@ -8,7 +8,8 @@ id: upgrade-v1.4
 onInstall:
   - if (nodes.sqldb):
       - updateDatadogMysqlIntegrationConf  # PAAS-357
-
+  - if (nodes.proc):  # Jahia
+      - addKarafPermissionFileForGraphQL  # PAAS-902
 
 actions:
   updateDatadogMysqlIntegrationConf:
@@ -44,3 +45,11 @@ actions:
         echo "       disable_innodb_metrics: false" >> /etc/datadog-agent/conf.d/mysql.d/conf.yaml
         systemctl restart crond datadog-agent
       user: root
+
+  addKarafPermissionFileForGraphQL:
+      - log: "[INFO] Adding permission file for tutorial GraphQL"
+      - cmd[proc]: |-
+            cd /data/digital-factory-data/karaf/etc/
+            wget -O org.jahia.modules.api.permissions-tuto.cfg ${baseUrl}/org.jahia.modules.api.permissions-tuto.cfg
+            chown tomcat:tomcat org.jahia.modules.api.permissions-tuto.cfg
+        user: root
