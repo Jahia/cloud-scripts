@@ -1,0 +1,26 @@
+---
+type: update
+version: 1.5.2
+name: thread dump
+id: enable-disable-thread-dump
+
+onInstall:
+  if (nodes.proc):  # Jahia
+    - if ("${settings.action}" == "enable"):
+        cmd[cp,proc]: |-
+          wget -O /usr/local/bin/thread-dump.sh ${baseUrl}/thread-dump.sh
+          chmod +x /usr/local/bin/thread-dump.sh
+          wget -O /etc/cron.d/thread-dump ${baseUrl}/thread-dump-cron
+        user: root
+    - elif ("${settings.action}" == "disable"):
+        cmd[cp,proc]: |-
+          rm /etc/cron.d/thread-dump
+        user: root
+
+settings:
+  fields:
+    - name: action
+      type: string
+      caption: enable or disable thread dump
+      default: enable
+      required: true
