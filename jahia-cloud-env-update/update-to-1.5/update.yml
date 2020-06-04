@@ -1,0 +1,25 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: upgrade-v1.4
+
+globals:
+  haproxy_version: 2.1.4
+
+onInstall:
+  - if (nodes.bl):
+      - upgradeHaproxy  # PAAS-959
+
+actions:
+  upgradeHaproxy:
+    forEach(nodes.bl):
+      - api:
+          - method: environment.control.RedeployContainerById
+            params:
+              nodeId: ${@i.id}
+              tag: ${globals.haproxy_version}
+              useExistingVolumes: false
+      - sleep:
+          milliseconds: 30000
