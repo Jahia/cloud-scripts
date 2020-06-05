@@ -5,6 +5,9 @@ name: Jahia - Digital Experience Manager
 logo: /images/jahia-logo-70x70.png
 id: upgrade-v1.4
 
+globals:
+  haproxy_version: 2.1.4
+
 onInstall:
   - if (nodes.sqldb):
       - updateDatadogMysqlIntegrationConf  # PAAS-357
