@@ -10,6 +10,8 @@ onInstall:
       - updateDatadogMysqlIntegrationConf  # PAAS-357
   - if (nodes.proc):  # Jahia
       - addKarafPermissionFileForGraphQL  # PAAS-902
+  - if (nodes.bl):
+      - upgradeHaproxy  # PAAS-959
 
 actions:
   updateDatadogMysqlIntegrationConf:
@@ -52,3 +54,14 @@ actions:
             cd /data/digital-factory-data/karaf/etc/
             wget -O org.jahia.modules.api.permissions-tuto.cfg ${baseUrl}/org.jahia.modules.api.permissions-tuto.cfg
         user: tomcat
+
+  upgradeHaproxy:
+    forEach(nodes.bl):
+      - api:
+          - method: environment.control.RedeployContainerById
+            params:
+              nodeId: ${@i.id}
+              tag: ${globals.haproxy_version}
+              useExistingVolumes: false
+      - sleep:
+          milliseconds: 30000
