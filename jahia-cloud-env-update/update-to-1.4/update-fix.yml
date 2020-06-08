@@ -1,0 +1,57 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: upgrade-v1.4-fix
+
+globals:
+  base_url_universal: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.12"
+
+onInstall:
+  - if (nodes.bl): # PAAS-959, last comment
+      - setSudoer
+      - installDatadogAgent
+      - environment.control.ApplyNodeGroupData [bl]:
+          data:
+            productName: haproxy
+            productVersion: ${nodes.bl.first.version}
+
+actions:
+  setSudoer:
+    - log: "## Set sudoer on all haproxy nodes"
+    - cmd[bl]: |-
+        touch /etc/sudoers.d/sudo
+        # Warning : it only works if jelastic user exists, which may be compromised
+        # if using a non-Jelastic docker image
+        USER=$(id -nu $(id -u jelastic))
+        echo "$USER ALL=NOPASSWD: ALL" >> /etc/sudoers.d/sudo
+        echo "jelastic ALL=NOPASSWD: ALL" >> /etc/sudoers.d/sudo
+      user: root
+
+  installDatadogAgent:
+    - cmd [bl]: |-
+        haproxy_admin_stats_pass=$(grep "stats auth" /etc/haproxy/haproxy.cfg.d/00-global.cfg | cut -d":" -f2)
+        DD_API_KEY=${DATADOGAPIKEY} bash -c "$(curl -L https://raw.githubusercontent.com/DataDog/datadog-agent/master/cmd/agent/install_script.sh)"
+        NODE_NAME=${HOSTNAME/-*}
+        echo "hostname: $(echo $_ROLE| sed 's/_//g').${NODE_NAME#node}" >> /etc/datadog-agent/datadog.yaml
+        sed -i 's/# logs_enabled: false/logs_enabled: true/' /etc/datadog-agent/datadog.yaml
+        echo "tags:" >> /etc/datadog-agent/datadog.yaml
+        echo " - env:${PACKAGE_TYPE}" >> /etc/datadog-agent/datadog.yaml
+        echo " - product:jahia" >> /etc/datadog-agent/datadog.yaml
+        echo " - version:${DX_VERSION}" >> /etc/datadog-agent/datadog.yaml
+        echo " - envname:${envName}" >> /etc/datadog-agent/datadog.yaml
+        echo " - provide:${_PROVIDE}" >> /etc/datadog-agent/datadog.yaml
+        echo " - role:${_ROLE}" >> /etc/datadog-agent/datadog.yaml
+        echo " - envmode:${jahia_cfg_operatingMode}" >> /etc/datadog-agent/datadog.yaml
+        wget -O /etc/datadog-agent/conf.d/haproxy.d/conf.yaml ${base_url_universal}/configs/dd_agent_haproxy_conf.yml
+        sed -i 's/my_awesome_password/${haproxy_admin_stats_pass}/g' /etc/datadog-agent/conf.d/haproxy.d/conf.yaml
+        wget -O /etc/datadog-agent/conf.d/process.d/conf.yaml ${base_url_universal}/configs/dd_agent_process_conf.yml
+        wget -O /usr/local/bin/set_dd_tags.sh ${base_url_universal}/scripts/set_dd_tags.sh
+        wget -O /etc/cron.d/set_dd_tags_cron ${base_url_universal}/configs/set_dd_tags_cron
+        chmod u+x /usr/local/bin/set_dd_tags.sh
+        wget -O /etc/rsyslog.d/haproxy.conf ${base_url_universal}/configs/rsyslog_haproxy
+        chown root:dd-agent /var/log/haproxy/* && chmod 640 /var/log/haproxy/*
+        systemctl restart rsyslog crond datadog-agent
+      user: root
+
