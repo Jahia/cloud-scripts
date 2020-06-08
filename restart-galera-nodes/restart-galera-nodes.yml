@@ -1,0 +1,107 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: restart-gelera-nodes
+
+onInstall:
+  - getJahiaVersion
+
+  - enable_karaf_login: proc
+  - switch-fullreadonly:
+      group: "proc"
+      fullreadmode: "ON"
+
+  - if(globals.jahiaVersion < '7.3.3.0'):
+      - enable_karaf_login: cp
+      - switch-fullreadonly:
+          group: "cp"
+          fullreadmode: "ON"
+
+  - restartGalera
+
+  - switch-fullreadonly:
+      group: "proc"
+      fullreadmode: "OFF"
+  - disable_karaf_login: proc
+
+  - if(globals.jahiaVersion < '7.3.3.0'):
+      - switch-fullreadonly:
+          group: "cp"
+          fullreadmode: "OFF"
+      - disable_karaf_login: cp
+
+
+actions:
+  switch-fullreadonly:
+    - log: "switch full read mode to ${this.fullreadmode} on nodegroup ${this.group}"
+    - cmd[${this.group}]: |-
+        ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only ${this.fullreadmode}
+
+  getJahiaVersion:
+    - log: "Get jahia version"
+    - script: |-
+        var resp = jelastic.env.control.GetEnvInfo('${env.envName}', session)
+        for (var i = 0, g = resp.nodes; i < g.length; i++) {
+          if (g[i].nodeGroup == "proc") {
+            var jahia_version = g[i].version.split("-", 1)[0]
+            break
+            }
+          }
+        return {'result': 0, 'jahia_version': jahia_version}
+    - setGlobals:
+        jahiaVersion: ${response.jahia_version}
+    - log: "Jahia is v${globals.jahiaVersion}"
+
+  enable_karaf_login:
+    - log: "Activate karaf's ssh login on ${this}'s nodegroup"
+    - cmd[${this}]: |-
+        [ -f /tmp/abricot ] && rm /tmp/abricot
+        [ -f /tmp/abricot.pub  ] && rm /tmp/abricot.pub
+        ssh-keygen -t rsa -f /tmp/abricot -P ""
+        awk '{printf "abricot:%s,_g_:admingroup\n",$2}' /tmp/abricot.pub >> /data/digital-factory-data/karaf/etc/keys.properties
+        sed 's,\(sshRealm\s*=\s*\)jahia,\1karaf,' -i /data/digital-factory-data/karaf/etc/org.apache.karaf.shell.cfg
+        i=1
+        it=66
+        until (ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only); do
+          echo "karaf ssh login not updated yet (iteration $i/$it)"
+          if [ $i >= $it ]; then
+            echo "Too long to start, something is wrong here... EXITING"
+            exit 1
+          fi
+          ((i++))
+          sleep 1
+        done
+  disable_karaf_login:
+    - log: "Disable karaf's ssh login on ${this}'s nodegroup"
+    - cmd[${this}]: |-
+        [ -f /tmp/abricot  ] && rm /tmp/abricot
+        [ -f /tmp/abricot.pub  ] && rm /tmp/abricot.pub
+        sed '/^abricot:/d' -i /data/digital-factory-data/karaf/etc/keys.properties
+        sed 's,\(sshRealm\s*=\s*\)karaf,\1jahia,' -i /data/digital-factory-data/karaf/etc/org.apache.karaf.shell.cfg
+
+  restartGalera:
+    forEach(nodes.sqldb):
+      log: "Restarting MariaDB on node ${@i.id}..."
+      cmd[${@i.id}]: |-
+        service mysql stop || exit 1
+        if [ -f /var/lib/mysql/grastate.dat ]; then
+          cat /var/lib/mysql/grastate.dat
+        else
+          echo "$HOSTNAME is not in a cluster"
+        fi
+        service mysql stop
+        service mysql start
+        i=1
+        it=66
+        until [ "$(mysql -Ns -e \"show global status like 'wsrep_local_state_comment'\" | awk '{print $NF}')" != "Synced"  ]; do
+          echo "$(date) not ready yet (iteration $i/$it)"
+          if [ $i >= $it ]; then
+            echo "Too long to start, something is wrong here... EXITING"
+            exit 1
+          fi
+          sleep 1
+          ((i++))
+        done
+        echo "Node $HOSTNAME is now Synced !"
