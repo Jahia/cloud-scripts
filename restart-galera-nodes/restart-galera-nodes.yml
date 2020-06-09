@@ -66,7 +66,7 @@ actions:
         it=66
         until (ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only); do
           echo "karaf ssh login not updated yet (iteration $i/$it)"
-          if [ $i >= $it ]; then
+          if [ $i -ge $it ]; then
             echo "Too long to start, something is wrong here... EXITING"
             exit 1
           fi
@@ -95,9 +95,9 @@ actions:
         service mysql start
         i=1
         it=66
-        until [ "$(mysql -Ns -e \"show global status like 'wsrep_local_state_comment'\" | awk '{print $NF}')" != "Synced"  ]; do
+        until [ "$(mysql -Ns -e "show global status like 'wsrep_local_state_comment'" | awk '{print $NF}')" == "Synced"  ]; do
           echo "$(date) not ready yet (iteration $i/$it)"
-          if [ $i >= $it ]; then
+          if [ $i -ge $it ]; then
             echo "Too long to start, something is wrong here... EXITING"
             exit 1
           fi
