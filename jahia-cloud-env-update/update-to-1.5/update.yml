@@ -1,0 +1,20 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: upgrade-v1.5
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      log: nothing to do for now
+  - else:  # Unomi
+      - fixUnomiRestart
+
+actions:
+  fixUnomiRestart:
+    - cmd[cp]: |-
+        mkdir -p /var/lib/jelastic/overrides
+        echo "SERVICE='karaf';" >> /var/lib/jelastic/overrides/envinfo.lib
+        echo "DATA_OWNER='karaf:karaf';" >> /var/lib/jelastic/overrides/envinfo.lib
+      user: root
