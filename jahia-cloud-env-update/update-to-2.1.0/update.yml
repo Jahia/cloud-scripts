@@ -10,6 +10,7 @@ onInstall:
       log: nothing to do for now
   - else:  # Unomi
       - fixUnomiRestart
+      - checkElasticsearchBeforeStartKaraf  # PAAS-897
 
 actions:
   fixUnomiRestart:
@@ -17,4 +18,12 @@ actions:
         mkdir -p /var/lib/jelastic/overrides
         echo "SERVICE='karaf';" >> /var/lib/jelastic/overrides/envinfo.lib
         echo "DATA_OWNER='karaf:karaf';" >> /var/lib/jelastic/overrides/envinfo.lib
+      user: root
+
+  checkElasticsearchBeforeStartKaraf:
+    - cmd[cp]: |-
+        string="ExecStartPre=/bin/bash -c \"i=666; until (curl 'http://es:9200/_cluster/health?pretty' -s | egrep -q '.status. : .green.'); do ((i--)); if [ $i -eq 0 ]; then exit 66; fi; sleep 1; done\""
+        sed "11i$string\n" -i /etc/systemd/system/karaf.service
+        systemctl daemon-reload
+        exit $?
       user: root
