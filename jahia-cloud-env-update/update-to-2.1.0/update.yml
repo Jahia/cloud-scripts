@@ -7,7 +7,7 @@ id: upgrade-v1.5
 
 onInstall:
   - if (nodes.proc):  # Jahia
-      log: nothing to do for now
+      - healthcheckOnHaproxy  # PAAS-1078
   - else:  # Unomi
       - fixUnomiRestart
       - checkElasticsearchBeforeStartKaraf  # PAAS-897
@@ -26,4 +26,11 @@ actions:
         sed "11i$string\n" -i /etc/systemd/system/karaf.service
         systemctl daemon-reload
         exit $?
+      user: root
+
+  healthcheckOnHaproxy:
+    - cmd[bl]: |-
+        cp /etc/haproxy/haproxy.cfg.d/00-global.cfg /root/00-global.cfg.bak
+        sed -ie '/\!tools #HTTP_AUTH_BASIC/a\\n    acl healthcheck path /healthcheck\n    http-request allow if healthcheck' /etc/haproxy/haproxy.cfg.d/00-global.cfg
+        service haproxy reload
       user: root
