@@ -11,6 +11,7 @@ onInstall:
   - else:  # Unomi
       - fixUnomiRestart
       - checkElasticsearchBeforeStartKaraf  # PAAS-897
+      - addVolumeForEsData  # PAAS-1087
 
 actions:
   fixUnomiRestart:
@@ -34,3 +35,9 @@ actions:
         sed -ie '/\!tools #HTTP_AUTH_BASIC/a\\n    acl healthcheck path /healthcheck\n    http-request allow if healthcheck' /etc/haproxy/haproxy.cfg.d/00-global.cfg
         service haproxy reload
       user: root
+
+  addVolumeForEsData:
+    - api: environment.control.addcontainervolumebygroup
+      nodeGroup: es
+      path: /var/lib/elasticsearch
+      envName: ${env.envName}
