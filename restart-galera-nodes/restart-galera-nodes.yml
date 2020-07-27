@@ -37,7 +37,10 @@ actions:
   switch-fullreadonly:
     - log: "switch full read mode to ${this.fullreadmode} on nodegroup ${this.group}"
     - cmd[${this.group}]: |-
-        ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only ${this.fullreadmode}
+        RO_ON=$(ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only | grep -e Current -e local | grep ON)
+        if [ "$RO_ON" == "" ]; then
+          ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only ${this.fullreadmode}
+        fi
 
   getJahiaVersion:
     - log: "Get jahia version"
@@ -105,3 +108,4 @@ actions:
           ((i++))
         done
         echo "Node $HOSTNAME is now Synced !"
+      user: root
