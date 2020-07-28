@@ -10,7 +10,7 @@ onInstall:
       - healthcheckOnHaproxy  # PAAS-1078
   - else:  # Unomi
       - fixUnomiRestart
-      - checkElasticsearchBeforeStartKaraf  # PAAS-897
+      - checkElasticsearchBeforeStartKaraf  # PAAS-897 & PAAS-1084
       - addVolumeForEsData  # PAAS-1087
 
 actions:
@@ -23,8 +23,13 @@ actions:
 
   checkElasticsearchBeforeStartKaraf:
     - cmd[cp]: |-
-        string="ExecStartPre=/bin/bash -c \"i=666; until (curl 'http://es:9200/_cluster/health?pretty' -s | egrep -q '.status. : .green.'); do ((i--)); if [ $i -eq 0 ]; then exit 66; fi; sleep 1; done\""
-        sed "11i$string\n" -i /etc/systemd/system/karaf.service
+        pre_start_cmd=$(grep ExecStartPre /etc/systemd/system/karaf.service)
+        if [ "$pre_start_cmd" == "" ]; then
+          string="ExecStartPre=/bin/bash -c \"i=666; until (curl 'http://es:9200/_cluster/health?pretty' -s | egrep -q '.status. : .(green|yellow).'); do ((i--)); if [ $i -eq 0 ]; then exit 66; fi; sleep 1; done\""
+          sed "11i$string\n" -i /etc/systemd/system/karaf.service
+        else
+          sed -i 's/\(ExecStartPre.*\)\.green\.\(.*\)/\1.(green|yellow).\2/g' /etc/systemd/system/karaf.service
+        fi
         systemctl daemon-reload
         exit $?
       user: root
