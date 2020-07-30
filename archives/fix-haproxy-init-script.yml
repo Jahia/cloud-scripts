@@ -1,0 +1,11 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: fix-haproxy-init-script
+
+onInstall:
+  - if (nodes.bl): # COPS-93
+      - cmd[bl]: sed -i "s|^cfgfile=.*|cfgfile=/etc/haproxy/haproxy.cfg.d|g" /etc/init.d/haproxy
+        user: root
