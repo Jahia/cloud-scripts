@@ -8,6 +8,7 @@ id: upgrade-v1.5
 onInstall:
   - if (nodes.proc):  # Jahia
       - healthcheckOnHaproxy  # PAAS-1078
+      - fixMariaDbMaxOpenFiles  # PAAS-1093
   - else:  # Unomi
       - fixUnomiRestart
       - checkElasticsearchBeforeStartKaraf  # PAAS-897 & PAAS-1084
@@ -46,3 +47,8 @@ actions:
       nodeGroup: es
       path: /var/lib/elasticsearch
       envName: ${env.envName}
+
+  fixMariaDbMaxOpenFiles:
+    - cmd[sqldb]: |-
+        mkdir /etc/systemd/system/{mysql,mariadb}.service.d
+        echo -e "[Service]\nLimitNOFILE=524290" | tee /etc/systemd/system/{mysql,mariadb}.service.d/override.conf
