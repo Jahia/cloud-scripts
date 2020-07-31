@@ -1,0 +1,19 @@
+---
+- hosts: jel_hn
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Fix stopped env
+      shell: |-
+        for i in $(vzlist -SHo ctid,name | grep " haproxy\." | awk '{print $1}'); do
+          echo "Processing $i"
+          vzctl mount $i 1>/dev/null
+          grep -qw 'cfgfile=/etc/haproxy/haproxy.cfg.d' /vz/root/$i/etc/init.d/haproxy || sed -i 's#cfgfile=/etc/haproxy/haproxy.cfg#cfgfile=/etc/haproxy/haproxy.cfg.d#' /vz/root/$i/etc/init.d/haproxy
+          grep 'cfgfile=' /vz/root/$i/etc/init.d/haproxy
+          vzctl umount $i 1>/dev/null
+          echo -e "Done\n$(vzctl status $i)\n"
+        done
+      register: output
+
+    - debug: 
+        var: output.stdout_lines
