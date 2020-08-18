@@ -9,6 +9,7 @@ onInstall:
   - if (nodes.proc):  # Jahia
       - healthcheckOnHaproxy  # PAAS-1078
       - fixMariaDbMaxOpenFiles  # PAAS-1093
+      - haproxyDirectNodeAccess # PAAS-1123
   - else:  # Unomi
       - fixUnomiRestart
       - checkElasticsearchBeforeStartKaraf  # PAAS-897 & PAAS-1084
@@ -34,6 +35,20 @@ actions:
         systemctl daemon-reload
         exit $?
       user: root
+
+  haproxyDirectNodeAccess:
+    - cmd[bl]: |-
+        if [ ! -f "/etc/haproxy/haproxy.cfg.d/11-proc.cfg" ]; then
+          wget -qO /etc/haproxy/haproxy.cfg.d/11-proc.cfg ${baseUrl}/haproxy-11-proc.cfg
+          echo "    server ${env.appid}-${nodes.proc.first.id} ${nodes.proc.first.intIP}:80 check cookie s${nodes.proc.first.id}" >> /etc/haproxy/haproxy.cfg.d/11-proc.cfg
+        fi
+        line_exists=$(grep "use_backend proc" /etc/haproxy/haproxy.cfg.d/00-global.cfg)
+        if [ "$line_exists" == "" ]; then
+          line_content='   use_backend proc if { cook(JSESSIONID),lower -m beg s${nodes.proc.first.id} }'
+          line_nb_to_insert=$(grep -n "default_backend bk_jahia" /etc/haproxy/haproxy.cfg.d/00-global.cfg | awk '{print substr($1, 1, length($1)-1)}')
+          sed -i "$line_nb_to_insert i\ $line_content" /etc/haproxy/haproxy.cfg.d/00-global.cfg
+        fi
+        sudo service haproxy reload
 
   healthcheckOnHaproxy:
     - cmd[bl]: |-
