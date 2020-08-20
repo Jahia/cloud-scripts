@@ -3,7 +3,7 @@ type: update
 version: 1.5.2
 name: Jahia - Digital Experience Manager
 logo: /images/jahia-logo-70x70.png
-id: upgrade-v1.5
+id: update-v2.1.0
 
 onInstall:
   - if (nodes.proc):  # Jahia
@@ -67,3 +67,4 @@ actions:
     - cmd[sqldb]: |-
         mkdir /etc/systemd/system/{mysql,mariadb}.service.d
         echo -e "[Service]\nLimitNOFILE=524290" | tee /etc/systemd/system/{mysql,mariadb}.service.d/override.conf
+      user: root
