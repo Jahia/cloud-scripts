@@ -24,6 +24,36 @@ actions:
     setGlobals:
       PRONAME: "UNOMI"
 
+  setupES:
+    forEach(nodes.es):
+      cmd[${@i.id}]: |-
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install repository-azure
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install repository-s3
+        /usr/share/elasticsearch/bin/elasticsearch --version
+        es_major_version=$(/usr/share/elasticsearch/bin/elasticsearch --version | cut -d"." -f1 | cut -d" " -f2)
+        es_conf=/etc/elasticsearch/elasticsearch.yml
+        ipadd=$(ip a s scope global | awk '$1=="inet" {split($2, ipad, "/"); print ipad[1]}')
+        node_name=$(awk -v ipadd=$ipadd '$1==ipadd && $2~/^es_[0-9]+$/ {print $2; exit}' /etc/hosts)
+        # some cleaning in case of an update
+        sed -e '/^path\.repo/d' \
+            -e '/^node\.name/d' \
+            -e '/^discovery\.zen\./d' \
+            -e '/^discovery\.seed\./d' \
+            -e '/^cluster\.initial\./d' \
+            -i $es_conf
+        sed 's/\(^discovery.type: single-node\)/#\1/' -i $es_conf
+        echo "node.name: $node_name" >> $es_conf
+        hosts_list=$(awk '$2~/^es_[0-9]+$/ {nodes[$2]} END{asorti(nodes);printf "["; for(n=1;n<=length(nodes);n++){if(n<length(nodes)){sep=", "}else{sep="]"}; printf "\"%s\"%s",nodes[n],sep}}' /etc/hosts)
+        discovery_hosts_parameter_name="discovery.zen.ping.unicast.hosts"
+        if [ $es_major_version -ge 7 ]; then
+          discovery_hosts_parameter_name="discovery.seed_hosts"
+          echo "cluster.initial_master_nodes: $hosts_list" >> $es_conf
+        fi
+        echo "$discovery_hosts_parameter_name: $hosts_list" >> $es_conf
+        echo "discovery.zen.minimum_master_nodes: $(expr ${nodes.es.length} / 2 + 1)" >> $es_conf
+        systemctl enable elasticsearch
+        systemctl restart elasticsearch
+
   setReplica:
     - if(nodes.es.length > 1):
         - if(nodes.es.length > 4):
