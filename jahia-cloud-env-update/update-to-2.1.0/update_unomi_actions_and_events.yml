@@ -1,0 +1,58 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: updateunomi_actions_and_events-v1.1.0
+
+
+onAfterServiceScaleOut[es]:
+  - setSomeGlobals
+  - setupES
+  - setReplica
+  - updateReplica
+  - setupDatadogAgentEs: es
+
+onAfterServiceScaleIn[es]:
+  - setSomeGlobals
+  - setupES
+  - setReplica
+  - updateReplica
+
+actions:
+  setReplica:
+    - if(nodes.es.length > 1):
+        - if(nodes.es.length > 4):
+          - setGlobals:
+              - replica: 2
+        - else:
+          - setGlobals:
+              - replica: 1
+    - else:
+        setGlobals:
+          - replica: 0
+    - forEach(nodes.cp):
+        cmd[${@i.id}]: |-
+          setenv=$(find /opt/jcustomer/jcustomer/bin -name setenv)
+          # test if not update needed
+          actual=$(awk -F'=' '/${PRONAME}_ELASTICSEARCH_MONTHLYINDEX_REPLICAS/ {print $NF}' $setenv)
+          if [ ! -z "$actual" ]; then
+            if [ $actual -eq ${globals.replica} ]; then
+              echo "$(hostname) already get the good replica parameters (${globals.replica})"
+              exit 0
+            fi
+          fi
+          # some cleaning in case of an update
+          sed '/^export ${globals.PRONAME}_ELASTICSEARCH/d' -i $setenv
+          echo "export ${globals.PRONAME}_ELASTICSEARCH_MONTHLYINDEX_REPLICAS=${globals.replica}" >> $setenv
+          echo "export ${globals.PRONAME}_ELASTICSEARCH_DEFAULTINDEX_REPLICAS=${globals.replica}" >> $setenv
+          systemctl is-active --quiet karaf && systemctl restart karaf || exit 0
+        user: root
+
+  updateReplica:
+    - cmd[${nodes.es.first.id}]: |-
+        curl -s http://$(hostname):9200/_cat/indices | awk -v repl=${globals.replica} '$6>repl {print $3}' | while read index; do
+            curl -s -XPUT http://$(hostname):9200/$index/_settings \
+              -H "Content-Type: application/json" \
+              -d '{"index":{"number_of_replicas": ${globals.replica} }}'
+        done
