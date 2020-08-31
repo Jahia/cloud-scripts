@@ -20,6 +20,10 @@ onAfterServiceScaleIn[es]:
   - updateReplica
 
 actions:
+  setSomeGlobals:
+    setGlobals:
+      PRONAME: "UNOMI"
+
   setReplica:
     - if(nodes.es.length > 1):
         - if(nodes.es.length > 4):
