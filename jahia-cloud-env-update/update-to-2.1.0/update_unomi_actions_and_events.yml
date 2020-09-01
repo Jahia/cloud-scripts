@@ -120,7 +120,7 @@ actions:
 
   updateReplica:
     - cmd[${nodes.es.first.id}]: |-
-        curl -s http://$(hostname):9200/_cat/indices | awk -v repl=${globals.replica} '$6>repl {print $3}' | while read index; do
+        curl -s http://$(hostname):9200/_cat/indices | awk -v repl=${globals.replica} '$6!=repl {print $3}' | while read index; do
             curl -s -XPUT http://$(hostname):9200/$index/_settings \
               -H "Content-Type: application/json" \
               -d '{"index":{"number_of_replicas": ${globals.replica} }}'
