@@ -1,0 +1,21 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: restart-galera-nodes
+
+mixins:
+  - mixins-galera.yml
+
+onInstall:
+  - enableFullReadOnlyOnCluster
+  - restartGalera
+  - disableFullReadOnlyOnCluster
+
+actions:
+  restartGalera:
+    forEach(nodes.sqldb):
+      - log: "Restarting MariaDB on node ${@i.id}..."
+      - stopGalera: ${@i.id}
+      - startGalera: ${@i.id}
