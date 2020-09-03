@@ -1,0 +1,22 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: update-v2.2.0
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+  - else:  # Unomi
+      - enableXforwardedFor # PAAS-495
+
+actions:
+  enableXforwardedFor:
+    - cmd[cp]: |-
+        file=$(find $JCUSTOMER_HOME/jcustomer/etc -name custom.system.properties)
+        line_exists=$(grep checkForwardedHeaders $file)
+        if [ "$line_exists" == "" ]; then
+          find $JCUSTOMER_HOME/jcustomer/etc -name custom.system.properties -exec sed "\$aorg.osgi.service.http.checkForwardedHeaders=true" -i {} \;
+          service karaf restart
+        fi
+      user: root
