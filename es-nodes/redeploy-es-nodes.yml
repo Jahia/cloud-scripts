@@ -1,0 +1,37 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: redeploy-es-nodes
+
+onInstall:
+  - if (nodes.es):
+      - redeployEsNodes  # PAAS-1087
+
+actions:
+  manageKarafService:
+    - cmd[cp]: systemctl ${this} karaf
+      user: root
+
+  redeployEsNodes:
+    - if (nodes.es.length == 1):
+        - log: "Stopping Karaf..."
+        - manageKarafService: stop
+
+        - log: "Redeploying Elasticsearch node..."
+        - api: environment.control.redeploycontainersbygroup
+          nodeGroup: es
+          tag: ${nodes.es.first.version}
+          useExistingVolumes: true
+
+        - log: "Starting Karaf..."
+        - manageKarafService: start
+    - else:
+        - forEach(nodes.es):
+            - log: "Redeploying Elasticsearch node ${@i.id}..."
+            - api: environment.control.RedeployContainerById
+              nodeId: ${@i.id}
+              tag: ${nodes.es.first.version}
+              useExistingVolumes: true
+              skipReinstall: false
