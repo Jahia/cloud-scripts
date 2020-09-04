@@ -1,42 +1,4 @@
 ---
-type: update
-version: 1.5.2
-name: Jahia - Digital Experience Manager
-logo: /images/jahia-logo-70x70.png
-id: restart-galera-nodes
-
-onInstall:
-  - getJahiaVersion
-
-  - enable_karaf_login: proc
-  - is_fullreadonly_enabled
-
-  - if(!${globals.RO}):
-      - switch-fullreadonly:
-          group: "proc"
-          fullreadmode: "ON"
-
-      - if(globals.jahiaVersion < '7.3.3.0'):
-          - enable_karaf_login: cp
-          - switch-fullreadonly:
-              group: "cp"
-              fullreadmode: "ON"
-
-  - restartGalera
-
-  - if(!${globals.RO}):
-      - switch-fullreadonly:
-          group: "proc"
-          fullreadmode: "OFF"
-      - disable_karaf_login: proc
-
-      - if(globals.jahiaVersion < '7.3.3.0'):
-          - switch-fullreadonly:
-              group: "cp"
-              fullreadmode: "OFF"
-          - disable_karaf_login: cp
-
-
 actions:
   is_fullreadonly_enabled:
     - cmd[proc]: |-
@@ -96,28 +58,68 @@ actions:
         sed '/^abricot:/d' -i /data/digital-factory-data/karaf/etc/keys.properties
         sed 's,\(sshRealm\s*=\s*\)karaf,\1jahia,' -i /data/digital-factory-data/karaf/etc/org.apache.karaf.shell.cfg
 
-  restartGalera:
-    forEach(nodes.sqldb):
-      log: "Restarting MariaDB on node ${@i.id}..."
-      cmd[${@i.id}]: |-
-        service mysql stop || exit 1
-        if [ -f /var/lib/mysql/grastate.dat ]; then
-          cat /var/lib/mysql/grastate.dat
-        else
-          echo "$HOSTNAME is not in a cluster"
+  enableFullReadOnlyOnCluster:
+    - getJahiaVersion
+
+    - enable_karaf_login: proc
+    - is_fullreadonly_enabled
+
+    - if(!${globals.RO}):
+        - switch-fullreadonly:
+            group: "proc"
+            fullreadmode: "ON"
+
+        - if(globals.jahiaVersion < '7.3.3.0'):
+            - enable_karaf_login: cp
+            - switch-fullreadonly:
+                group: "cp"
+                fullreadmode: "ON"
+
+  disableFullReadOnlyOnCluster:
+    - getJahiaVersion
+    - is_fullreadonly_enabled
+
+    - if(${globals.RO}):
+        - switch-fullreadonly:
+            group: "proc"
+            fullreadmode: "OFF"
+        - disable_karaf_login: proc
+
+        - if(globals.jahiaVersion < '7.3.3.0'):
+            - switch-fullreadonly:
+                group: "cp"
+                fullreadmode: "OFF"
+            - disable_karaf_login: cp
+
+  stopGalera:
+    cmd[${this}]: |-
+      service mysql stop || exit 1
+      if [ -f /var/lib/mysql/grastate.dat ]; then
+        cat /var/lib/mysql/grastate.dat
+      else
+        echo "$HOSTNAME is not in a cluster"
+      fi
+      service mysql stop
+    user: root
+
+  startGalera:
+    cmd[${this}]: |-
+      service mysql start
+      rc=$?
+      if [ ! -f /var/lib/mysql/grastate.dat ]; then
+        echo "$HOSTNAME is not in a cluster, exiting"
+        exit $rc
+      fi
+      i=1
+      it=66
+      until [ "$(mysql -Ns -e "show global status like 'wsrep_local_state_comment'" | awk '{print $NF}')" == "Synced"  ]; do
+        echo "$(date) not ready yet (iteration $i/$it)"
+        if [ $i -ge $it ]; then
+          echo "Too long to start, something is wrong here... EXITING"
+          exit 1
         fi
-        service mysql stop
-        service mysql start
-        i=1
-        it=66
-        until [ "$(mysql -Ns -e "show global status like 'wsrep_local_state_comment'" | awk '{print $NF}')" == "Synced"  ]; do
-          echo "$(date) not ready yet (iteration $i/$it)"
-          if [ $i -ge $it ]; then
-            echo "Too long to start, something is wrong here... EXITING"
-            exit 1
-          fi
-          sleep 1
-          ((i++))
-        done
-        echo "Node $HOSTNAME is now Synced !"
-      user: root
+        sleep 1
+        ((i++))
+      done
+      echo "Node $HOSTNAME is now Synced !"
+    user: root
