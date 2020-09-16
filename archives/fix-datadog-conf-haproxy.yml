@@ -1,0 +1,46 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: fix-datadog-conf-haproxy
+
+onInstall:
+  - setGlobals:
+      baseURL: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/${settings.universal_tag}"
+  - log: "## Fix Datadog agent setup on bl nodes"
+  - cmd[bl]: |-
+      NODE_NAME=${HOSTNAME/-*}
+      > /etc/datadog-agent/datadog.yaml
+      echo "hostname: $(echo $_ROLE| sed 's/_//g').${NODE_NAME#node}" >> /etc/datadog-agent/datadog.yaml
+      echo "tags:" >> /etc/datadog-agent/datadog.yaml
+      echo " - env:${PACKAGE_TYPE}" >> /etc/datadog-agent/datadog.yaml
+      echo " - product:jahia" >> /etc/datadog-agent/datadog.yaml
+      echo " - version:${DX_VERSION}" >> /etc/datadog-agent/datadog.yaml
+      echo " - envname:${env.envName}" >> /etc/datadog-agent/datadog.yaml
+      echo " - provide:${_PROVIDE}" >> /etc/datadog-agent/datadog.yaml
+      echo " - role:${_ROLE}" >> /etc/datadog-agent/datadog.yaml
+      echo " - envmode:${jahia_cfg_operatingMode}" >> /etc/datadog-agent/datadog.yaml
+      wget -qO /etc/datadog-agent/conf.d/haproxy.d/conf.yaml ${globals.baseURL}/configs/dd_agent_haproxy_conf.yml
+      STATS_PWD=$(grep "stats auth admin" /etc/haproxy/haproxy.cfg.d/00-global.cfg | head -n1 | cut -d":" -f2)
+      sed -i "s/my_awesome_password/${STATS_PWD}/g" /etc/datadog-agent/conf.d/haproxy.d/conf.yaml
+      wget -qO /etc/datadog-agent/conf.d/process.d/conf.yaml ${globals.baseURL}/configs/dd_agent_process_conf.yml
+      wget -qO /usr/local/bin/set_dd_tags.sh ${globals.baseURL}/scripts/set_dd_tags.sh
+      wget -qO /etc/cron.d/set_dd_tags_cron ${globals.baseURL}/configs/set_dd_tags_cron
+      chmod u+x /usr/local/bin/set_dd_tags.sh
+      wget -qO /etc/rsyslog.d/haproxy.conf ${globals.baseURL}/configs/rsyslog_haproxy
+      chown root:dd-agent /var/log/haproxy/* && chmod 640 /var/log/haproxy/*
+      systemctl restart rsyslog crond datadog-agent
+    user: root
+  - if ("${response.errOut}" != ""):
+      - return:
+          type: error
+          message: "An error occurred when setting up datadog agent on an haproxy node."
+
+settings:
+  fields:
+    - name: universal_tag
+      default: v1.13
+      type: string
+      caption: Universal branch name or tag
+      required: true
