@@ -1,0 +1,12 @@
+---
+type: update
+version: 1.5.2
+name: Update v2.3.0
+logo: /images/jahia-logo-70x70.png
+id: update-v2.3.0
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      - log: "Nothing to update"
+  - else:  # Unomi
+      - log: "Nothing to update"

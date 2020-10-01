@@ -1,12 +1,13 @@
 ---
 type: update
 version: 1.5.2
-name: Jahia - Digital Experience Manager
+name: Update v2.2.0
 logo: /images/jahia-logo-70x70.png
 id: update-v2.2.0
 
 onInstall:
   - if (nodes.proc):  # Jahia
+      - log: "Nothing to update"
   - else:  # Unomi
       - enableXforwardedFor # PAAS-495
 
