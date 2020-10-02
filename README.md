@@ -12,13 +12,31 @@ Basically, there is one subfolder per Jahia Cloud release usually containing at 
 
 Other manifests can be added if specific actions need to be run on some environments, as weel as any other file (config file, scripts) required.
 
-## restart-galera-nodes
+## galera-nodes
 
-Allows to restart Galera nodes in a row without stopping Tomcat as the manifest will put the Jahia cluster in Full Read-only mode.
+### restart-galera-nodes
+
+Allows to restart Galera nodes sequentially without stopping Tomcat as the manifest will put the Jahia cluster in Full Read-only mode.
+
+### redeploy-galera-nodes
+
+Allows to redeploy Galera nodes sequentially without stopping Tomcat as the manifest will put the Jahia cluster in Full Read-only mode.
+
+## es-nodes
+
+### redeploy-es-nodes
+
+Allows to redeploy Elasticsearch nodes sequentially.
 
 ## thread-dump
 
 This manifest allows to enable/disable thread dumps generation every minute on Tomcat nodes.
+
+## utils
+
+### region-migrate
+
+Migrates an environment to another region.
 
 ## Archives
 

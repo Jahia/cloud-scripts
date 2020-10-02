@@ -1,0 +1,24 @@
+---
+type: update
+version: 1.5.2
+name: Migrate region
+id: migrate-region
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      install:
+        jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/region_migrate.yml"
+        settings:
+          targetRegion: ${settings.targetRegion}
+  - else:  # Unomi
+      install:
+        jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_unomi/master/region_migrate.yml"
+        settings:
+          targetRegion: ${settings.targetRegion}
+
+settings:
+    fields:
+        - name: targetRegion
+          type: regionlist
+          caption: Target Region
+          required: true
