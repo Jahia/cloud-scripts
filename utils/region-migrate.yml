@@ -1,0 +1,32 @@
+---
+type: update
+version: 1.5.2
+name: Migrate region
+id: migrate-region
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      - script: |-
+          data = {
+            "targetAppid": "${env.envName}",
+            "settings": {"region": "${settings.targetRegion}"},
+            "manifest": "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/region_migrate.yml"
+          };
+          res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data);
+          return {"result": 0, "out": "Jahia environments migrated " + res};
+  - else:  # Unomi
+      - script: |-
+          data = {
+            "targetAppid": "${env.envName}",
+            "settings": {"region": "${settings.targetRegion}"},
+            "manifest": "https://raw.githubusercontent.com/Jahia/paas_jelastic_unomi/master/region_migrate.yml"
+          };
+          res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data);
+          return {"result": 0, "out": "Jahia environments migrated " + res};
+
+settings:
+    fields:
+        - name: targetRegion
+          type: regionlist
+          caption: Target Region
+          required: true
