@@ -9,4 +9,12 @@ onInstall:
   - if (nodes.proc):  # Jahia
       - log: "Nothing to update"
   - else:  # Unomi
-      - log: "Nothing to update"
+      - fix_es_datadog_hostname
+
+actions:
+  fix_es_datadog_hostname:
+    - cmd[es]: |-
+        nodeId=$(hostname | sed 's/node\([0-9]*\).*/\1/g')
+        sed -i "s/^hostname:.*/hostname: es.$nodeId/g" /etc/datadog-agent/datadog.yaml
+        service datadog-agent restart
+      user: root
