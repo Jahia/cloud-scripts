@@ -7,12 +7,43 @@ id: redeploy-es-nodes
 
 onInstall:
   - if (nodes.es):
-      - redeployEsNodes  # PAAS-1087
+      - checkEsClusterStatus
+      - redeployEsNodes
 
 actions:
+
+  installJq:
+    - cmd[${this}]: yum -y install jq
+      user: root
+
   manageKarafService:
     - cmd[cp]: systemctl ${this} karaf
       user: root
+
+  # Every second, we check cluster health. If curl fails with a 10s timeout, then exit 1.
+  # Until status is green & actual nodes number equals nodes.es.length, we check that the
+  # number of active shards is increasing (meaning the node is not fully initialized yet).
+  # If it is still not after 10s, exit 1.
+  checkEsClusterStatus:
+    - installJq: ${nodes.es.first.id}
+    - cmd[${nodes.es.first.id}]: |-
+        health_file="/tmp/es_cluster_health.json"
+        i=0
+        prev_active_shards=0
+        while [ $i -lt 10 ]; do
+          curl -Ssf "es:9200/_cluster/health?timeout=10s" > $health_file || (rm -f $health_file; exit 1)
+          status=$(cat $health_file | jq ".status")
+          real_nodes_count=$(cat $health_file | jq ".number_of_nodes")
+          if [ $status = "\"green\"" ] && [ $real_nodes_count -eq ${nodes.es.length} ]; then
+            exit 0
+          fi
+          active_shards=$(cat $health_file | jq ".active_shards")
+          [ $active_shards -eq $prev_active_shards ] && ((i=i+1)) || i=0
+          prev_active_shards=$active_shards
+          sleep 1
+        done
+        echo "[ERROR] There is an issue with the cluster, please check" 1>&2
+        exit 1
 
   redeployEsNodes:
     - if (nodes.es.length == 1):
@@ -27,6 +58,7 @@ actions:
 
         - log: "Starting Karaf..."
         - manageKarafService: start
+        - checkEsClusterStatus
     - else:
         - forEach(nodes.es):
             - log: "Redeploying Elasticsearch node ${@i.id}..."
@@ -35,3 +67,4 @@ actions:
               tag: ${nodes.es.first.version}
               useExistingVolumes: true
               skipReinstall: false
+            - checkEsClusterStatus
