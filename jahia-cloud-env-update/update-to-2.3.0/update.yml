@@ -7,6 +7,12 @@ id: update-v2.3.0
 
 onInstall:
   - if (nodes.proc):  # Jahia
-      - log: "Nothing to update"
+      - disableDirectNodeAccess: "proc, cp, sqldb" # PAAS-1045
   - else:  # Unomi
-      - log: "Nothing to update"
+      - disableDirectNodeAccess: es # PAAS-1045
+
+actions:
+  disableDirectNodeAccess:
+    - environment.control.ApplyNodeGroupData [${this}]:
+        data:
+            isSLBAccessEnabled: false
