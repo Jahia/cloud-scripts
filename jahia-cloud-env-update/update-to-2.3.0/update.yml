@@ -10,9 +10,20 @@ onInstall:
       - disableDirectNodeAccess: "proc, cp, sqldb" # PAAS-1045
   - else:  # Unomi
       - disableDirectNodeAccess: es # PAAS-1045
+      - enableXforwardedFor # PAAS-1247
 
 actions:
   disableDirectNodeAccess:
     - environment.control.ApplyNodeGroupData [${this}]:
         data:
             isSLBAccessEnabled: false
+
+  enableXforwardedFor:
+    - cmd[cp]: |-
+        file=$(find $JCUSTOMER_HOME/jcustomer/etc -name custom.system.properties)
+        line_exists=$(grep checkForwardedHeaders $file)
+        if [ "$line_exists" != "" ]; then
+          find $JCUSTOMER_HOME/jcustomer/etc -name custom.system.properties -exec sed "s/\(org.osgi.service.http.checkForwardedHeaders=\)true/\1false/" -i {} \;
+          service karaf restart
+        fi
+      user: root
