@@ -1,0 +1,22 @@
+---
+type: update
+version: 1.5.2
+name: Update v2.4.0
+logo: /images/jahia-logo-70x70.png
+id: update-v2.4.0
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      - jelasticPackageLogs: "proc, cp, sqldb, bl" # PAAS-1237
+  - else:  # Unomi
+      - jelasticPackageLogs: "es, cp" # PAAS-1237
+
+actions:
+  jelasticPackageLogs:
+    - cmd[${this}]: |-
+        mkdir -p /etc/datadog-agent/conf.d/jelastic.d /var/log/jelastic-packages
+        chown $(sed -n 's/^STACK_USER=\(.*\)/\1/p' < /.jelenv):root /var/log/jelastic-packages
+        chown dd-agent: /etc/datadog-agent/conf.d/jelastic.d
+        wget -qO /etc/datadog-agent/conf.d/jelastic.d/conf.yaml ${baseUrl}/dd_agent_jelastic_package_conf.yml
+        systemctl restart datadog-agent
+      user: root
