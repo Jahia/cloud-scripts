@@ -27,7 +27,7 @@ actions:
     - cmd[cp]: |-
         pre_start_cmd=$(grep ExecStartPre /etc/systemd/system/karaf.service)
         if [ "$pre_start_cmd" == "" ]; then
-          string="ExecStartPre=/bin/bash -c \"i=666; until (curl 'http://es:9200/_cluster/health?pretty' -s | egrep -q '.status. : .(green|yellow).'); do ((i--)); if [ $i -eq 0 ]; then exit 66; fi; sleep 1; done\""
+          string="ExecStartPre=/bin/bash -c \"i=666; until (curl 'http://es:9200/_cluster/health?pretty' -s | egrep -q '.status. : .(green|yellow).'); do ((i--)); if [ \$i -eq 0 ]; then exit 66; fi; sleep 1; done\""
           sed "11i$string\n" -i /etc/systemd/system/karaf.service
         else
           sed -i 's/\(ExecStartPre.*\)\.green\.\(.*\)/\1.(green|yellow).\2/g' /etc/systemd/system/karaf.service

@@ -1,0 +1,19 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Digital Experience Manager
+logo: /images/jahia-logo-70x70.png
+id: update-fix-v2.1.0
+
+onInstall:
+  - if (!nodes.proc):  # Unomi
+      # PAAS-1251, fixed in update.yml, apply only if you need to repair an old deployment.
+      - fixCheckElasticsearchBeforeStartKaraf
+
+actions:
+  fixCheckElasticsearchBeforeStartKaraf:
+    - cmd[cp]: |-
+        sed -i 's/\(ExecStartPre.*\)\[  -eq 0 \]\(.*\)/\1\[ $i -eq 0 \]\2/g' /etc/systemd/system/karaf.service
+        systemctl daemon-reload
+        exit $?
+      user: root
