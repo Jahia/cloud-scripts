@@ -1,0 +1,27 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - Check database connections
+logo: /images/jahia-logo-70x70.png
+id: jahia-check-database-connections
+description:
+  short: Jahia - Check database connections
+ssl: true
+skipNodeEmails: true
+globals:
+  usedGaleraNodes: false
+onInstall:
+  forEach(i:nodes.sqldb):
+    - cmd[${@i.id}]:
+      - mysql -e "show processlist;" | grep "jahia-db" | wc -l
+    - log: "## checking Galera connections"
+    - if (globals.usedGaleraNodes == true && ${response.out} > 0):
+        return:
+          type: error
+          message: "More than one Galera node is active"
+    - if (${response.out} > 0):
+      setGlobals:
+        usedGaleraNodes: true
+  return:
+    type: success
+    message: All OK. No more than one Galera is active
