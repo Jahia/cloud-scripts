@@ -22,6 +22,10 @@ Allows to restart Galera nodes sequentially without stopping Tomcat as the manif
 
 Allows to redeploy Galera nodes sequentially without stopping Tomcat as the manifest will put the Jahia cluster in Full Read-only mode.
 
+### check-tomcat-galera-connections
+
+Returns an error if there's more than one Galera node with opened connections with Jahia nodes. Otherwise, returns a success.  
+
 ## es-nodes
 
 ### redeploy-es-nodes
