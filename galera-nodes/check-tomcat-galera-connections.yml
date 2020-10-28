@@ -3,7 +3,7 @@ type: update
 version: 1.5.2
 name: Jahia - Check database connections
 logo: /images/jahia-logo-70x70.png
-id: jahia-jelastic
+id: jahia-check-database-connections
 description:
   short: Jahia - Check database connections
 ssl: true
