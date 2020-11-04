@@ -1,0 +1,10 @@
+---
+type: update
+version: 1.5.2
+id: disable-proxysql
+name: Disable ProxySQL
+description: Disable ProxySQL in JDBC configuration
+
+onInstall:
+  - cmd [cp, proc]: |-
+      sed -i "s#127.0.0.1:6033#galera_1,galera_2,galera_3#" /opt/tomcat/webapps/ROOT/META-INF/context.xml
