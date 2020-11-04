@@ -1,0 +1,131 @@
+---
+type: update
+version: 1.5.2
+id: setup-proxysql
+name: Setup ProxySQL
+description: Install and configure ProxySQL on Tomcat nodes. Enable ProxySQL in JDBC configuration
+
+onInstall:
+  - installProxySql
+  - addFirewallRule: cp
+  - addFirewallRule: proc
+  - setupProxySql
+  - checkProxySql
+  - updateJdbcDatasource
+
+actions:
+  installProxySql:
+    - cmd [cp, proc]: |-
+        yum remove -y proxysql 2>/dev/null
+        rm -rf /var/lib/proxysql
+        echo '[proxysql_repo]' > /etc/yum.repos.d/proxysql.repo
+        echo 'name= ProxySQL YUM repository' >> /etc/yum.repos.d/proxysql.repo
+        echo 'baseurl=https://repo.proxysql.com/ProxySQL/proxysql-2.0.x/centos/$releasever' >> /etc/yum.repos.d/proxysql.repo
+        echo 'gpgcheck=1' >> /etc/yum.repos.d/proxysql.repo
+        echo 'gpgkey=https://repo.proxysql.com/ProxySQL/repo_pub_key' >> /etc/yum.repos.d/proxysql.repo
+        yum install -y proxysql || exit 1
+        systemctl enable --now proxysql || exit 1
+      user: root
+
+  addFirewallRule:
+    - api: environment.security.addrule
+      nodeGroup: ${this}
+      envName: ${env.envName}
+      rule:
+        direction: INPUT
+        name: Allow ProxySQL
+        protocol: TCP
+        ports: 6032
+        src: ALL
+        action: ALLOW
+        isEnabled:  true
+
+  setupProxySql:
+    - setGlobals:
+        sql: "mysql -h 127.0.0.1 -uadmin -padmin -P6032"
+    - cmd [cp, proc]: |-
+        ${globals.sql} -e "update global_variables set variable_value='1024M' where variable_name='mysql-max_allowed_packet';"
+        ${globals.sql} -e "update global_variables set variable_value='admin:admin;cluster1:clusterpass' where variable_name='admin-admin_credentials';"
+        ${globals.sql} -e "update global_variables set variable_value='cluster1' where variable_name='admin-cluster_username';"
+        ${globals.sql} -e "update global_variables set variable_value='clusterpass' where variable_name='admin-cluster_password';"
+        ${globals.sql} -e "update global_variables set variable_value=200 where variable_name='admin-cluster_check_interval_ms';"
+        ${globals.sql} -e "update global_variables set variable_value=100 where variable_name='admin-cluster_check_status_frequency';"
+        ${globals.sql} -e "update global_variables set variable_value='true' where variable_name='admin-cluster_mysql_query_rules_save_to_disk';"
+        ${globals.sql} -e "update global_variables set variable_value='true' where variable_name='admin-cluster_mysql_servers_save_to_disk';"
+        ${globals.sql} -e "update global_variables set variable_value='true' where variable_name='admin-cluster_mysql_users_save_to_disk';"
+        ${globals.sql} -e "update global_variables set variable_value='true' where variable_name='admin-cluster_proxysql_servers_save_to_disk';"
+        ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_query_rules_diffs_before_sync';"
+        ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_servers_diffs_before_sync';"
+        ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_users_diffs_before_sync';"
+        ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_proxysql_servers_diffs_before_sync';"
+        ${globals.sql} -e "load admin variables to RUNTIME;"
+        ${globals.sql} -e "save admin variables to disk;"
+        ${globals.sql} -e "load mysql variables to RUNTIME;"
+        ${globals.sql} -e "save mysql variables to disk;"
+      user: root
+    - foreach (nodes.cp):
+        - cmd [cp, proc]: |-
+            ${globals.sql} -e "INSERT INTO proxysql_servers (hostname,port,weight,comment) VALUES ('node${@i.id}-${env.domain}',6032,0,'browsing_$((${@}+1))');"
+          user: root
+    - cmd [cp, proc]: |-
+        ${globals.sql} -e "INSERT INTO proxysql_servers (hostname,port,weight,comment) VALUES ('node${nodes.proc.first.id}-${env.domain}',6032,0,'processing');"
+        ${globals.sql} -e "LOAD PROXYSQL SERVERS TO RUNTIME;"
+        ${globals.sql} -e "SAVE PROXYSQL SERVERS TO DISK;"
+      user: root
+    - cmd [cp, proc]: |-
+        i=60
+        while ! sleep 1 && ${globals.sql} -e "select count(*) from stats_proxysql_servers_metrics where Uptime_s = 0;" | grep -s 0; do
+          ((i=i-1))
+          if [ $i -eq 0 ]; then
+            echo "[ERROR] ProxySQL cluster is not healthy" 1>&2
+            exit 1
+          fi
+        done
+        ${globals.sql} -e "INSERT INTO mysql_galera_hostgroups (writer_hostgroup,backup_writer_hostgroup, \
+              reader_hostgroup,offline_hostgroup,active,max_writers,writer_is_also_reader,max_transactions_behind) \
+              VALUES (2,3,4,1,1,1,1,100);"
+      user: root
+    - cmd [sqldb]: |-
+        mysql -e "CREATE USER 'proxysql'@'%' IDENTIFIED BY 'monitorpassword';"
+        mysql -e "GRANT SELECT on sys.* TO 'proxysql'@'%';"
+        mysql -e "GRANT SELECT on performance_schema.* TO 'proxysql'@'%';"
+        mysql -e "GRANT  PROCESS, REPLICATION CLIENT ON *.* TO 'proxysql'@'%';"
+    - cmd [cp, proc]: |-
+        ${globals.sql} -e "UPDATE global_variables SET variable_value='proxysql' WHERE variable_name='mysql-monitor_username';"
+        ${globals.sql} -e "UPDATE global_variables SET variable_value='monitorpassword' WHERE variable_name='mysql-monitor_password';"
+        ${globals.sql} -e "LOAD MYSQL VARIABLES TO RUNTIME;"
+        ${globals.sql} -e "SAVE MYSQL VARIABLES TO DISK;"
+      user: root
+    - cmd [proc]: |-
+        ${globals.sql} -e "INSERT INTO mysql_servers(hostgroup_id,hostname,port, max_connections) VALUES (3,'galera_1',3306, 30);"
+        ${globals.sql} -e "INSERT INTO mysql_servers(hostgroup_id,hostname,port, max_connections) VALUES (3,'galera_2',3306, 30);"
+        ${globals.sql} -e "INSERT INTO mysql_servers(hostgroup_id,hostname,port, max_connections) VALUES (2,'galera_3',3306, 30);"
+        ${globals.sql} -e "LOAD MYSQL SERVERS TO RUNTIME;"
+        ${globals.sql} -e "SAVE MYSQL SERVERS TO DISK;"
+        ${globals.sql} -e "INSERT INTO mysql_query_rules (active, match_digest, destination_hostgroup, apply) VALUES (1, '^SELECT.*',4, 0);"
+        ${globals.sql} -e "INSERT INTO mysql_query_rules (active, match_digest, destination_hostgroup, apply) VALUES (1, '^SELECT.* FOR UPDATE',2, 1);"
+        ${globals.sql} -e "LOAD MYSQL QUERY RULES TO RUNTIME;"
+        ${globals.sql} -e "SAVE MYSQL QUERY RULES TO DISK;"
+        i=60
+        while ! sleep 1 && ${globals.sql} -e "select count(*) from runtime_mysql_servers where hostgroup_id in (3,4) and status = 'SHUNNED';" | grep -s 0; do
+          ((i=i-1))
+          if [ $i -eq 0 ]; then
+            echo "[ERROR] Some Galera nodes are SHUNNED" 1>&2
+            exit 1
+          fi
+        done
+        ${globals.sql} -e "INSERT INTO mysql_users(username,password,default_hostgroup) VALUES ('${DB_USER}','${DB_PASSWORD}',2);"
+        ${globals.sql} -e "LOAD MYSQL USERS TO RUNTIME;"
+        ${globals.sql} -e "SAVE MYSQL USERS TO DISK;"
+      user: root
+
+  checkProxySql:
+    - cmd [cp, proc]: |-
+        if ! mysql -h 127.0.0.1 -P 6033 -u$DB_USER -p$DB_PASSWORD -e "select count(*) from jahia.jbpm_task;" | grep 0; then
+          echo "[ERROR] Can't query Jahia database via ProxySQL" 1>&2
+          exit 1
+        fi
+
+  updateJdbcDatasource:
+    - cmd [cp, proc]: |-
+        sed -i "s#galera_1,galera_2,galera_3#127.0.0.1:6033#" /opt/tomcat/webapps/ROOT/META-INF/context.xml
