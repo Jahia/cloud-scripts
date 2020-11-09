@@ -8,6 +8,7 @@ id: update-v2.4.0
 onInstall:
   - if (nodes.proc):  # Jahia
       - jelasticPackageLogsJahia # PAAS-1237
+      - removeOldserverId        # COPS-148
   - else:  # Unomi
       - jelasticPackageLogsUnomi # PAAS-1237
 
@@ -36,3 +37,38 @@ actions:
         wget -qO /etc/datadog-agent/conf.d/jelastic.d/conf.yaml ${baseUrl}/dd_agent_jelastic_package_conf.yml
         systemctl restart datadog-agent
       user: root
+
+  removeOldserverId:
+    - cmd [proc, cp]: |-
+        short_name=$(echo ${_ROLE}.$HOSTNAME | sed -r 's/^([a-Z]+)\.[a-Z]+([0-9]+)-.+$/\1.\2/' | tr 'A-Z' 'a-z')
+        sed -i "s|^cluster.node.serverId.*|cluster.node.serverId = $short_name|" $STACK_PATH/conf/digital-factory-config/jahia/jahia.node.properties
+      user: root
+    - cmd [proc]:
+        - service tomcat restart
+      user: root
+    - sleep: 60000
+    - forEach(nodes.cp):
+        - cmd [${@i.id}]:
+            - service tomcat restart
+          user: root
+        - sleep: 60000
+    - cmd [proc]:
+        - awk '$1=="cluster.node.serverId" {print $NF; exit}' /opt/tomcat/conf/digital-factory-config/jahia/jahia.node.properties
+    - writeFile:
+        nodegroup: proc
+        path: /tmp/nodesList
+        body: ${response.out}
+    - forEach(nodes.cp):
+        - cmd [${@i.id}]:
+            - awk '$1=="cluster.node.serverId" {print $NF; exit}' /opt/tomcat/conf/digital-factory-config/jahia/jahia.node.properties
+        - appendFile:
+            nodegroup: proc
+            path: /tmp/nodesList
+            body: ${response.out}
+    - cmd [proc]: |-
+        sql_cmd="mysql -E -u $DB_USER -p$DB_PASSWORD -h galera -D jahia"
+        query="DELETE from JR_J_LOCAL_REVISIONS where "
+        cond=$(while read line; do echo -n "JOURNAL_ID!=\"$line\" AND "; done < /tmp/nodesList | sed 's/\s*AND\s*$//')
+        echo $sql_cmd -e \'$query $cond\' > /tmp/nodesList.sh
+        bash /tmp/nodesList.sh
+        rm -f /tmp/nodesList*
