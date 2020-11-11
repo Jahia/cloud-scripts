@@ -121,7 +121,7 @@ actions:
 
   checkProxySql:
     - cmd [cp, proc]: |-
-        if ! mysql -h 127.0.0.1 -P 6033 -u$DB_USER -p$DB_PASSWORD -e "select count(*) from jahia.jbpm_task;" | grep 0; then
+        if ! mysql -h 127.0.0.1 -P 6033 -u$DB_USER -p$DB_PASSWORD -e "select count(*) as abricot from jahia.jbpm_task;" | grep abricot; then
           echo "[ERROR] Can't query Jahia database via ProxySQL" 1>&2
           exit 1
         fi
