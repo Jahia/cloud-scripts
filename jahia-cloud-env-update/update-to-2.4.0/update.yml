@@ -5,10 +5,15 @@ name: Update v2.4.0
 logo: /images/jahia-logo-70x70.png
 id: update-v2.4.0
 
+globals:
+  healthcheck_token: ${fn.password(20)}
+
 onInstall:
   - if (nodes.proc):  # Jahia
       - jelasticPackageLogsJahia # PAAS-1237
       - removeOldserverId        # COPS-148
+      - healthcheckToken         # PAAS-1271
+      - jahiaRollingRestart      # PAAS-1271
   - else:  # Unomi
       - jelasticPackageLogsUnomi # PAAS-1237
 
@@ -72,3 +77,16 @@ actions:
         echo $sql_cmd -e \'$query $cond\' > /tmp/nodesList.sh
         bash /tmp/nodesList.sh
         rm -f /tmp/nodesList*
+
+  healthcheckToken:
+    - api [cp,proc]: env.control.AddContainerEnvVars
+      vars: {"jahia_cfg_healthcheck_token": "${globals.healthcheck_token}"}
+
+  jahiaRollingRestart:
+    - script: |
+        data = {
+          "targetAppid": "${env.appid}",
+          "manifest": "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/utils/restart-tomcat-nodes.yml"
+          };
+        res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data);
+        return {"result": 0, "out": res}
