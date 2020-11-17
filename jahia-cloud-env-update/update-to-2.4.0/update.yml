@@ -5,10 +5,16 @@ name: Update v2.4.0
 logo: /images/jahia-logo-70x70.png
 id: update-v2.4.0
 
+globals:
+  healthcheck_token: ${fn.password(20)}
+
 onInstall:
   - if (nodes.proc):  # Jahia
       - jelasticPackageLogsJahia # PAAS-1237
       - removeOldserverId        # COPS-148
+      - healthcheckToken         # PAAS-1271
+      - jahiaRollingRestart      # PAAS-1271
+      - updateHaproxyConfigForToken # PAAS-1257
   - else:  # Unomi
       - jelasticPackageLogsUnomi # PAAS-1237
 
@@ -72,3 +78,35 @@ actions:
         echo $sql_cmd -e \'$query $cond\' > /tmp/nodesList.sh
         bash /tmp/nodesList.sh
         rm -f /tmp/nodesList*
+
+  healthcheckToken:
+    - api [cp,proc,bl]: env.control.AddContainerEnvVars
+      vars: {"jahia_cfg_healthcheck_token": "${globals.healthcheck_token}"}
+
+  jahiaRollingRestart:
+    - script: |
+        data = {
+          "targetAppid": "${env.appid}",
+          "manifest": "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/utils/restart-tomcat-nodes.yml"
+          };
+        res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data);
+        return {"result": 0, "out": res}
+
+  updateHaproxyConfigForToken:
+    cmd[bl]: |-
+      yum install -y jq
+      cd /etc/haproxy/haproxy.cfg.d
+      if [ "$(grep external-check 10-jahia.cfg)" = "" ]; then
+        wget -qO healthcheck.sh ${baseUrl}/haproxy-backend-healthcheck.sh
+        chown haproxy: healthcheck.sh
+        chmod u+x healthcheck.sh
+        sed -i 's/httpchk.*/external-check/' 10-jahia.cfg
+        sed -i '5 a\    external-check command /etc/haproxy/haproxy.cfg.d/healthcheck.sh' 10-jahia.cfg
+        sed -i '5 a\    external-check path "/usr/bin:/bin"' 10-jahia.cfg
+        sed -i 's/httpchk.*/external-check/' 11-proc.cfg
+        sed -i '4 a\    external-check command /etc/haproxy/haproxy.cfg.d/healthcheck.sh' 11-proc.cfg
+        sed -i '4 a\    external-check path "/usr/bin:/bin"' 11-proc.cfg
+        sed -i '8 a\    external-check' 00-global.cfg
+        service haproxy reload
+      fi
+    user: root
