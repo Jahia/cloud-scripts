@@ -1,9 +1,9 @@
 ---
 type: update
 version: 1.5.2
-name: Update v2.4.0
+name: Update v3.1.0
 logo: /images/jahia-logo-70x70.png
-id: update-v2.4.0
+id: update-v3.1.0
 
 globals:
   healthcheck_token: ${fn.password(20)}
