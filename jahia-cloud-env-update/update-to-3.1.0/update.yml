@@ -13,7 +13,8 @@ onInstall:
       - jelasticPackageLogsJahia # PAAS-1237
       - removeOldserverId        # COPS-148
       - healthcheckToken         # PAAS-1271
-      - jahiaRollingRestart      # PAAS-1271
+      - jahiaRollingRestart      # PAAS-1271 + COPS-148
+      - cleanRevisionTable        # COPS-148
       - updateHaproxyConfigForToken # PAAS-1257
   - else:  # Unomi
       - jelasticPackageLogsUnomi # PAAS-1237
@@ -62,13 +63,6 @@ actions:
             nodegroup: proc
             path: /tmp/nodesList
             body: ${response.out}
-    - cmd [proc]: |-
-        sql_cmd="mysql -E -u $DB_USER -p$DB_PASSWORD -h galera -D jahia"
-        query="DELETE from JR_J_LOCAL_REVISIONS where "
-        cond=$(while read line; do echo -n "JOURNAL_ID!=\"$line\" AND "; done < /tmp/nodesList | sed 's/\s*AND\s*$//')
-        echo $sql_cmd -e \'$query $cond\' > /tmp/nodesList.sh
-        bash /tmp/nodesList.sh
-        rm -f /tmp/nodesList*
 
   healthcheckToken:
     - api [cp,proc,bl]: env.control.AddContainerEnvVars
@@ -82,6 +76,15 @@ actions:
           };
         res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data);
         return {"result": 0, "out": res}
+
+  cleanRevisionTable:
+    - cmd [proc]: |-
+        sql_cmd="mysql -E -u $DB_USER -p$DB_PASSWORD -h galera -D jahia"
+        query="DELETE from JR_J_LOCAL_REVISIONS where "
+        cond=$(while read line; do echo -n "JOURNAL_ID!=\"$line\" AND "; done < /tmp/nodesList | sed 's/\s*AND\s*$//')
+        echo $sql_cmd -e \'$query $cond\' > /tmp/nodesList.sh
+        bash /tmp/nodesList.sh
+        rm -f /tmp/nodesList*
 
   updateHaproxyConfigForToken:
     cmd[bl]: |-
