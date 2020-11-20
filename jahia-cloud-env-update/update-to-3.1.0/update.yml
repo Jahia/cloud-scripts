@@ -50,15 +50,6 @@ actions:
         sed -i "s|^cluster.node.serverId.*|cluster.node.serverId = $short_name|" $STACK_PATH/conf/digital-factory-config/jahia/jahia.node.properties
       user: root
     - cmd [proc]:
-        - service tomcat restart
-      user: root
-    - sleep: 60000
-    - forEach(nodes.cp):
-        - cmd [${@i.id}]:
-            - service tomcat restart
-          user: root
-        - sleep: 60000
-    - cmd [proc]:
         - awk '$1=="cluster.node.serverId" {print $NF; exit}' /opt/tomcat/conf/digital-factory-config/jahia/jahia.node.properties
     - writeFile:
         nodegroup: proc
