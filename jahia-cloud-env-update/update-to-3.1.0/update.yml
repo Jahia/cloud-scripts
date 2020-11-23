@@ -1,9 +1,9 @@
 ---
 type: update
 version: 1.5.2
-name: Update v2.4.0
+name: Update v3.1.0
 logo: /images/jahia-logo-70x70.png
-id: update-v2.4.0
+id: update-v3.1.0
 
 globals:
   healthcheck_token: ${fn.password(20)}
@@ -69,13 +69,8 @@ actions:
       vars: {"jahia_cfg_healthcheck_token": "${globals.healthcheck_token}"}
 
   jahiaRollingRestart:
-    - script: |
-        data = {
-          "targetAppid": "${env.appid}",
-          "manifest": "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/utils/restart-tomcat-nodes.yml"
-          };
-        res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data);
-        return {"result": 0, "out": res}
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/jahia/jahia-rolling-restart.yml"
 
   cleanRevisionTable:
     - cmd [proc]: |-
