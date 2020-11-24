@@ -1,0 +1,37 @@
+---
+type: update
+version: 1.5.2
+name: Redeploy jCustomer nodes
+logo: /images/jahia-logo-70x70.png
+id: redeploy-jcustomer-nodes
+description: 
+  short: Redeploy jCustomer nodes because of CVE-2020-13942 [COPS-199]
+
+globals:
+  jcustomer_upgrade_package: "https://raw.githubusercontent.com/Jahia/paas_jelastic_unomi/master/unomi_upgrade.yml"
+
+onInstall:
+  - if (nodes.es):
+      - setGlobals:
+          target_version: ""
+      - if ("${nodes.cp.first.version}" < "1.4.4"):
+          - redeployJcustomerNodes: 1.4.4
+      - elif ("${nodes.cp.first.version}" > "1.4.4"):
+          - if ("${nodes.cp.first.version}" < "1.5.4"):
+              - redeployJcustomerNodes: 1.5.4
+      - else:
+          - log: Already last version (${nodes.cp.first.version}), nothing to do.
+
+actions:
+  redeployJcustomerNodes:
+    - script: |-
+        data = {
+          "targetAppid": "${env.appid}",
+          "manifest": "${globals.jcustomer_upgrade_package}",
+          "settings": {
+            "targetVersion": "${this}",
+            "packageType": "dev"
+            }
+          }
+        res = jelastic.dev.scripting.eval("appstore", session, "InstallApp", data)
+        return res
