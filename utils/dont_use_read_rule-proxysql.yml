@@ -1,0 +1,27 @@
+---
+type: update
+version: 1.5.2
+id: dont_use_read_rule-proxysql
+name: don't use read hostgroup ProxySQL
+description: Disable rule for use reader hostgroup
+
+onInstall:
+  - disable_read_rule
+  - checkProxySql
+
+actions:
+  disable_read_rule:
+    - setGlobals:
+        sql: "mysql -h 127.0.0.1 -uadmin -padmin -P6032"
+    - cmd [proc]: |-
+        ${globals.sql} -e "UPDATE mysql_query_rules SET active=0 WHERE active==1 AND destination_hostgroup==4;"
+        ${globals.sql} -e "LOAD MYSQL QUERY RULES TO RUNTIME;"
+        ${globals.sql} -e "SAVE MYSQL QUERY RULES TO DISK;"
+      user: root
+
+  checkProxySql:
+    - cmd [cp, proc]: |-
+        if ! mysql -h 127.0.0.1 -P 6033 -u$DB_USER -p$DB_PASSWORD -e "select count(*) as abricot from jahia.jbpm_task;" | grep abricot; then
+          echo "[ERROR] Can't query Jahia database via ProxySQL" 1>&2
+          exit 1
+        fi
