@@ -9,6 +9,7 @@ onInstall:
   - if (nodes.proc):  # Jahia
       - jahiaPropertiesToEnvVars
       - jahiaRollingRestart
+      - haproxyLogs
   - else:  # Unomi
       log: Nothing to do
 
@@ -46,3 +47,11 @@ actions:
   jahiaRollingRestart:
     install:
       jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/jahia/jahia-rolling-restart.yml"
+
+  haproxyLogs:
+    cmd[bl]: |-
+      wget -qO /etc/logrotate.d/haproxy ${baseUrl}/logrotate_haproxy
+      chmod 644 /etc/logrotate.d/haproxy
+      sed -i 's/haproxy.log/*.log/g' /etc/datadog-agent/conf.d/haproxy.d/conf.yaml
+      service datadog-agent restart
+    user: root
