@@ -1,0 +1,48 @@
+---
+type: update
+version: 1.5.2
+name: Update v3.2.0
+logo: /images/jahia-logo-70x70.png
+id: update-v3.2.0
+
+onInstall:
+  - if (nodes.proc):  # Jahia
+      - jahiaPropertiesToEnvVars
+      - jahiaRollingRestart
+  - else:  # Unomi
+      log: Nothing to do
+
+actions:
+  jahiaPropertyToEnvVar:
+    - cmd [proc]: |-
+        PROPERTIES_FILE=/opt/tomcat/conf/digital-factory-config/jahia/jahia.properties
+        ENVVAR=${this}
+        PROPERTY_KEY="$(echo $ENVVAR | sed "s;jahia_cfg_;;" | sed "s;_;.;g")"
+        if ! grep -wq $ENVVAR /.jelenv; then
+          PROPERTY_VALUE=$(grep -w $PROPERTY_KEY $PROPERTIES_FILE | cut -d= -f2 | sed "s/ //")
+          [ "$PROPERTY_VALUE" = "" ] && echo "Cannot retrieve value of $PROPERTY_VALUE" && exit 1
+          echo PROPERTY_VALUE && exit 0
+        fi
+        eval "echo \${$ENVVAR}"
+      user: root
+    - env.control.AddContainerEnvVars [cp, proc]:
+      vars:
+        ${this}: ${response.out}
+    - cmd [proc]: |-
+        PROPERTIES_FILE=/opt/tomcat/conf/digital-factory-config/jahia/jahia.properties
+        ENVVAR=${this}
+        PROPERTY_KEY="$(echo $ENVVAR | sed "s;jahia_cfg_;;" | sed "s;_;.;g")"
+        sed -i "s|^\( *$PROPERTY_KEY *=.*\)|#\1|" $PROPERTIES_FILE || exit 1
+
+  jahiaPropertiesToEnvVars:
+    - jahiaPropertyToEnvVar: jahia_cfg_jahiaFileUploadMaxSize
+    - jahiaPropertyToEnvVar: jahia_cfg_imageService
+    - jahiaPropertyToEnvVar: jahia_cfg_imageMagickPath
+    - jahiaPropertyToEnvVar: jahia_cfg_mvnPath
+    - jahiaPropertyToEnvVar: jahia_cfg_expandImportedFilesOnDisk
+    - jahiaPropertyToEnvVar: jahia_cfg_org_jahia_ehcachemanager_maxBytesLocalHeap
+    - jahiaPropertyToEnvVar: jahia_cfg_org_jahia_ehcachemanager_big_maxBytesLocalHeap
+
+  jahiaRollingRestart:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/jahia/jahia-rolling-restart.yml"
