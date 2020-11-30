@@ -1,0 +1,32 @@
+---
+type: update
+version: 1.5.2
+id: use-mysql-driver
+name: Use Mysql Driver
+description: Fetch mysql driver and update context.yml to use it with proxysql
+
+
+mixins:
+  - https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/5d4ad97c05aa06d4787f9bc21596ab97a6ef5be7/jahia/jahia_actions.yml
+
+onInstall:
+  - setupMysqlDriver: proc
+  - foreach (nodes.cp):
+    - setupMysqlDriver: ${@i.id}
+
+actions:
+  setupMysqlDriver:
+    - cmd[${this}]: |-
+        cd /opt/tomcat/lib/
+        wget -q https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.22.zip || exit 1
+        unzip -q mysql-connector-java-8.0.22.zip
+        mv mysql-connector-java-8.0.22/mysql-connector-java-8.0.22.jar .
+        rm -r mysql-connector-java-8.0.22
+        rm mysql-connector-java-8.0.22.zip
+        chown tomcat:tomcat /opt/tomcat/lib/mysql-connector-java-8.0.22.jar
+        cp /opt/tomcat/webapps/ROOT/META-INF/context.xml ~/context.xml.bak
+        sed -i 's/org.mariadb/com.mysql/g' /opt/tomcat/webapps/ROOT/META-INF/context.xml
+        sed -i 's/mariadb:sequential/mysql/g' /opt/tomcat/webapps/ROOT/META-INF/context.xml
+        sudo service tomcat restart
+    - startupJahiaHealthCheck: ${this}
+
