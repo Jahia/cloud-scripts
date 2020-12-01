@@ -7,9 +7,22 @@ id: update-v3.1.0
 
 globals:
   healthcheck_token: ${fn.password(20)}
+  version_flag: "UPDATE_3_1_0"
 
 onInstall:
+  - script: |
+      const envVars = jelastic.env.control.GetContainerEnvVarsByGroup(
+          "${env.envName}",
+          session,
+          "cp"
+      );
+      if ("${globals.version_flag}" in envVars.object) {
+          return {'result': 1, 'error': 'Update package already applied'}
+      } else {
+          return {'result': 0}
+      }
   - if (nodes.proc):  # Jahia
+      - updateJahiaEvents
       - jelasticPackageLogsJahia # PAAS-1237
       - removeOldserverId        # COPS-148
       - healthcheckToken         # PAAS-1271
@@ -17,9 +30,21 @@ onInstall:
       - cleanRevisionTable        # COPS-148
       - updateHaproxyConfigForToken # PAAS-1257
   - else:  # Unomi
+      - updateUnomiEvents
       - jelasticPackageLogsUnomi # PAAS-1237
+      - redeployEsNodes # PAAS-1095
+  - api[cp]: env.control.AddContainerEnvVars
+    vars: {"${globals.version_flag}": true}
 
 actions:
+  updateJahiaEvents:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.15/update.yml"
+
+  updateUnomiEvents:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_unomi/v1.13/update.yml"
+
   jelasticPackageLogsJahia:
     - jelasticPackageLogsPermissions:
         target: "proc,cp"
@@ -70,7 +95,7 @@ actions:
 
   jahiaRollingRestart:
     install:
-      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/jahia/jahia-rolling-restart.yml"
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.15/jahia/jahia-rolling-restart.yml"
 
   cleanRevisionTable:
     - cmd [proc]: |-
@@ -99,3 +124,7 @@ actions:
         service haproxy reload
       fi
     user: root
+
+  redeployEsNodes:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/cloud-scripts/master/es-nodes/redeploy-es-nodes.yml"
