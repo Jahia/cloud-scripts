@@ -10,6 +10,7 @@ globals:
 
 onInstall:
   - if (nodes.proc):  # Jahia
+      - updateJahiaEvents
       - jelasticPackageLogsJahia # PAAS-1237
       - removeOldserverId        # COPS-148
       - healthcheckToken         # PAAS-1271
@@ -17,9 +18,19 @@ onInstall:
       - cleanRevisionTable        # COPS-148
       - updateHaproxyConfigForToken # PAAS-1257
   - else:  # Unomi
+      - updateUnomiEvents
       - jelasticPackageLogsUnomi # PAAS-1237
+      - redeployEsNodes # PAAS-1095
 
 actions:
+  updateJahiaEvents:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.15/update.yml"
+
+  updateUnomiEvents:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_unomi/v1.13/update.yml"
+
   jelasticPackageLogsJahia:
     - jelasticPackageLogsPermissions:
         target: "proc,cp"
@@ -70,7 +81,7 @@ actions:
 
   jahiaRollingRestart:
     install:
-      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/master/jahia/jahia-rolling-restart.yml"
+      jps: "https://raw.githubusercontent.com/Jahia/paas_jelastic_dx_universal/v1.15/jahia/jahia-rolling-restart.yml"
 
   cleanRevisionTable:
     - cmd [proc]: |-
@@ -99,3 +110,7 @@ actions:
         service haproxy reload
       fi
     user: root
+
+  redeployEsNodes:
+    install:
+      jps: "https://raw.githubusercontent.com/Jahia/cloud-scripts/master/es-nodes/redeploy-es-nodes.yml"
