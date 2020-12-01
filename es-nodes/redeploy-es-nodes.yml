@@ -44,6 +44,7 @@ actions:
         done
         echo "[ERROR] There is an issue with the cluster, please check" 1>&2
         exit 1
+      user: root
 
   redeployEsNodes:
     - if (nodes.es.length == 1):
