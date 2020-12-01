@@ -7,8 +7,20 @@ id: update-v3.1.0
 
 globals:
   healthcheck_token: ${fn.password(20)}
+  version_flag: "UPDATE_3_1_0"
 
 onInstall:
+  - script: |
+      const envVars = jelastic.env.control.GetContainerEnvVarsByGroup(
+          "${env.envName}",
+          session,
+          "cp"
+      );
+      if ("${globals.version_flag}" in envVars.object) {
+          return {'result': 1, 'error': 'Update package already applied'}
+      } else {
+          return {'result': 0}
+      }
   - if (nodes.proc):  # Jahia
       - updateJahiaEvents
       - jelasticPackageLogsJahia # PAAS-1237
@@ -21,6 +33,8 @@ onInstall:
       - updateUnomiEvents
       - jelasticPackageLogsUnomi # PAAS-1237
       - redeployEsNodes # PAAS-1095
+  - api[cp]: env.control.AddContainerEnvVars
+    vars: {"${globals.version_flag}": true}
 
 actions:
   updateJahiaEvents:
