@@ -11,10 +11,10 @@ globals:
 
 onInstall:
   - script: |
-      const envVars = jelastic.env.control.GetContainerEnvVarsByGroup(
+      const envVars = jelastic.env.control.GetContainerEnvVars(
           "${env.envName}",
           session,
-          "cp"
+          "${nodes.cp.first.id}"
       );
       if ("${globals.version_flag}" in envVars.object) {
           return {'result': 1, 'error': 'Update package already applied'}
