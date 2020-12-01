@@ -34,7 +34,7 @@ actions:
           curl -Ssf "es:9200/_cluster/health?timeout=10s" > $health_file || (rm -f $health_file; exit 1)
           status=$(cat $health_file | jq ".status")
           real_nodes_count=$(cat $health_file | jq ".number_of_nodes")
-          if [ $status = "\"green\"" ] && [ $real_nodes_count -eq ${nodes.es.length} ]; then
+          if ([ $status = "\"green\"" ] || [ $status = "\"yellow\"" ]) && [ $real_nodes_count -eq ${nodes.es.length} ]; then
             exit 0
           fi
           active_shards=$(cat $health_file | jq ".active_shards")
