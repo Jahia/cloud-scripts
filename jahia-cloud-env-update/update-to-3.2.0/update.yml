@@ -10,6 +10,9 @@ onInstall:
       - jahiaPropertiesToEnvVars
       - jahiaRollingRestart
       - haproxyLogs
+      - if (nodes.sqldb.length > 1):
+          - increaseGaleraCacheSize
+          - galeraRollingRestart
   - else:  # Unomi
       log: Nothing to do
 
@@ -60,3 +63,12 @@ actions:
         systemctl restart datadog-agent
       fi
     user: root
+
+  increaseGaleraCacheSize:
+    cmd [sqldb]:
+      sed -i '/^wsrep_provider_options =.*/d' /etc/mysql/conf.d/galera.cnf
+      sed -i '/^wsrep_provider =.*/a wsrep_provider_options = "gcache.size=256M"' /etc/mysql/conf.d/galera.cnf
+
+  galeraRollingRestart:
+    install:
+      jps: "${baseUrl}/../../galera-nodes/restart-galera-nodes.yml"
