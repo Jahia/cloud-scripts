@@ -20,7 +20,7 @@ actions:
         ENVVAR=${this}
         PROPERTY_KEY="$(echo $ENVVAR | sed "s;jahia_cfg_;;" | sed "s;_;.;g")"
         if ! grep -wq $ENVVAR /.jelenv; then
-          PROPERTY_VALUE=$(grep -w $PROPERTY_KEY $PROPERTIES_FILE | cut -d= -f2 | sed "s/ //")
+          PROPERTY_VALUE=$(grep -E "^[# ]*$PROPERTY_KEY *=" $PROPERTIES_FILE | sed "s;.*= *\(.*\);\1;")
           [ "$PROPERTY_VALUE" = "" ] && echo "Cannot retrieve value of $PROPERTY_VALUE" && exit 1
           echo $PROPERTY_VALUE && exit 0
         fi
