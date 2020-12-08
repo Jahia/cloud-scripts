@@ -5,7 +5,21 @@ name: Update v3.2.0
 logo: /images/jahia-logo-70x70.png
 id: update-v3.2.0
 
+globals:
+  version_flag: "UPDATE_3_2_0"
+
 onInstall:
+  - script: |
+      const envVars = jelastic.env.control.GetContainerEnvVars (
+          "${env.envName}",
+          session,
+          "${nodes.cp.first.id}"
+      );
+      if ("${globals.version_flag}" in envVars.object) {
+          return {'result': 1, 'error': 'Update package already applied'}
+      } else {
+          return {'result': 0}
+      }
   - if (nodes.proc):  # Jahia
       - jahiaPropertiesToEnvVars
       - jahiaRollingRestart
@@ -13,8 +27,11 @@ onInstall:
       - if (nodes.sqldb.length > 1):
           - increaseGaleraCacheSize
           - galeraRollingRestart
+      - addHTTPSecurityHeaders   #PAAS-1282
   - else:  # Unomi
       log: Nothing to do
+  - api[cp]: env.control.AddContainerEnvVars
+    vars: {"${globals.version_flag}": true}
 
 actions:
   # https://jira.jahia.org/browse/PAAS-1002 changes were never applied to existing environments
@@ -104,3 +121,18 @@ actions:
   galeraRollingRestart:
     install:
       jps: "${baseUrl}/../../galera-nodes/restart-galera-nodes.yml"
+
+  addHTTPSecurityHeaders:
+    cmd[bl]: |-
+      insert_line_1='    http-response set-header Strict-Transport-Security "max-age=63072000;"'
+      insert_line_2='    http-response set-header X-Content-Type-Options "nosniff"'
+      insert_line_3='    http-response set-header X-XSS-Protection "1; mode=block;"'
+      if (grep -qPzo "$insert_line_1\n$insert_line_2\n$insert_line_3" /etc/haproxy/haproxy.cfg.d/00-global.cfg);
+      then
+        echo "headers already there"
+        exit 0
+      fi
+      pattern='#acl auth_ok http_auth(trusted_users) #HTTP_AUTH_BASIC'
+      sed -i "/$pattern/i\\$insert_line_1\n$insert_line_2\n$insert_line_3\n" /etc/haproxy/haproxy.cfg.d/00-global.cfg
+      service haproxy reload
+    user: root
