@@ -114,7 +114,7 @@ actions:
     user: root
 
   increaseGaleraCacheSize:
-    cmd [sqldb]:
+    cmd [sqldb]: |-
       sed -i '/^wsrep_provider_options =.*/d' /etc/mysql/conf.d/galera.cnf
       sed -i '/^wsrep_provider =.*/a wsrep_provider_options = "gcache.size=256M"' /etc/mysql/conf.d/galera.cnf
 
