@@ -21,6 +21,7 @@ onInstall:
           return {'result': 0}
       }
   - if (nodes.proc):  # Jahia
+      - fixHaproxyHealthcheckUrl
       - jahiaPropertiesToEnvVars
       - jahiaRollingRestart
       - haproxyLogs
@@ -34,6 +35,10 @@ onInstall:
     vars: {"${globals.version_flag}": true}
 
 actions:
+  fixHaproxyHealthcheckUrl:
+    - cmd [bl]: |-
+        sed -i "s;\$4/healthcheck?token;\$4/modules/healthcheck?token;" /etc/haproxy/haproxy.cfg.d/healthcheck.sh
+
   # https://jira.jahia.org/browse/PAAS-1002 changes were never applied to existing environments
   # For instance Arkema's environments
   # I prefer adding these values to jahia.properties before "moving" them to envvars in case we have to
