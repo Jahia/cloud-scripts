@@ -30,7 +30,7 @@ onInstall:
           - galeraRollingRestart
       - addHTTPSecurityHeaders   #PAAS-1282
   - else:  # Unomi
-      log: Nothing to do
+      - setupDatadogAgentEs: es   # PAAS-1309
   - api[cp]: env.control.AddContainerEnvVars
     vars: {"${globals.version_flag}": true}
 
@@ -141,3 +141,18 @@ actions:
       sed -i "/$pattern/i\\$insert_line_1\n$insert_line_2\n$insert_line_3\n" /etc/haproxy/haproxy.cfg.d/00-global.cfg
       service haproxy reload
     user: root
+
+  setupDatadogAgentEs:
+    cmd[${this}]: |-
+      chmod 755 /var/log/elasticsearch/
+      chmod 755 /var/log/elasticsearch/*.log -R
+      sed -i "s/\(url: http:\/\/\).*\(:.*\)/\1${HOSTNAME}\2/" /etc/datadog-agent/conf.d/elastic.d/conf.yaml
+      sed -i "s/\(env:\).*\('\)/\1${PACKAGE_TYPE}\2/" /etc/datadog-agent/conf.d/elastic.d/conf.yaml
+      mkdir /etc/datadog-agent/conf.d/jelastic.d /var/log/jelastic-packages
+      for f in /etc/datadog-agent/conf.d/jelastic.d /var/log/jelastic-packages; do
+        [ -d $f ] || mkdir $f
+      done
+      chown root:root /var/log/jelastic-packages
+      chown dd-agent:dd-agent /etc/datadog-agent/conf.d/jelastic.d
+      wget -qO /etc/datadog-agent/conf.d/jelastic.d/conf.yaml ${baseUrl}/dd_agent_jelastic_package_conf.yml
+      systemctl restart crond datadog-agent
