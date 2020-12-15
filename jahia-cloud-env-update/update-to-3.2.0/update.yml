@@ -21,8 +21,9 @@ onInstall:
           return {'result': 0}
       }
   - if (nodes.proc):  # Jahia
-      - fixHaproxyHealthcheckUrl
-      - jahiaPropertiesToEnvVars
+      - fixHaproxyHealthcheckUrl # PAAS-1308
+      - allowYellowHaproxyHealthcheck # PAAS-1324
+      - jahiaPropertiesToEnvVars # PAAS-1230
       - jahiaRollingRestart
       - haproxyLogs
       - if (nodes.sqldb.length > 1):
