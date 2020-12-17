@@ -95,15 +95,16 @@ actions:
         sed 's,\(sshRealm\s*=\s*\)karaf,\1jahia,' -i /data/digital-factory-data/karaf/etc/org.apache.karaf.shell.cfg
 
   getJahiaVersion:
-    - script: |
-        const envName = "${env.envName}";
-        env = jelastic.env.control.GetEnvInfo(envName, session);
-        jahia_version = env.nodeGroups.filter(function (nodeGroup) {
-                          return nodeGroup.name == "cp";
-                        })
-                        .pop()
-                        .productVersion;
-        return {'result': 0, 'out': jahia_version}
+    - script: |-
+        const envVars = jelastic.env.control.GetContainerEnvVars(
+            "${env.envName}",
+            session,
+            "${nodes.proc.first.id}"
+        );
+        if ( envVars.object["DX_VERSION"] )
+          return {'result': 0, 'out': envVars.object["DX_VERSION"]}
+        else
+          return {'result': 1, "error": "Can't get jahia version"}
     - setGlobals:
         jahia_version: ${response.out}
 
