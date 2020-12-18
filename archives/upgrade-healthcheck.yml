@@ -39,14 +39,22 @@ actions:
             cd /data/digital-factory-data/modules
             wget -O healthcheck-1.1.0.jar https://store.jahia.com/cms/mavenproxy/private-app-store/org/jahia/modules/healthcheck/1.1.0/healthcheck-1.1.0.jar
             sleep 20
-            bundle_id=$(ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no bundle:list |  awk '
-              {
-                if ($NF == "healthcheck" && $7 == "1.1.0" && NF == "9")
-                  print $1
-              }')
-            ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no bundle:start $bundle_id
     - else:
         log: No need to install new healthcheck on ${this}
+
+    - cmd[${this}]: |-
+        # starts the module if not
+        bundle_id=$(ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no bundle:list |  awk '
+          {
+            if ($NF == "healthcheck" && $7 == "1.1.0" && NF == "9" && $3 != "Active")
+              print $1
+          }')
+        if [ "$bundle" != "" ]; then
+          ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no bundle:start $bundle_id
+          echo "module started"
+        fi
+    - if ("${response.out}" != ""):
+        log: Module healthcheck started on ${this}
 
   removeOldHealthCheckVersions:
     - cmd[${this}]: |-
