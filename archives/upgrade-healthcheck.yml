@@ -49,7 +49,7 @@ actions:
             if ($NF == "healthcheck" && $7 == "1.1.0" && NF == "9" && $3 != "Active")
               print $1
           }')
-        if [ "$bundle" != "" ]; then
+        if [ "$bundle_id" != "" ]; then
           ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no bundle:start $bundle_id
           echo "module started"
         fi
