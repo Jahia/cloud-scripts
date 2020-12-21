@@ -147,28 +147,6 @@ actions:
       sed -i "/$pattern/i\\$insert_line_1\n$insert_line_2\n$insert_line_3\n" /etc/haproxy/haproxy.cfg.d/00-global.cfg
       service haproxy reload
     user: root
-  vaultAccount:
-    - script: |
-        const envVars = jelastic.env.control.GetContainerEnvVars(
-            "${env.envName}",
-            session,
-            "${nodes.bl.first.id}"
-        );
-        return {'result': 0, 'done': "VAULT_SECRET_ID" in envVars.object}
-    - if ("${response.done}" == "false"):
-        setupVaultAccount
-
-  setupVaultAccount:
-    - log: Generate vault credentials
-    - cmd[proc]: |-
-        yum install -y jq > /dev/null
-
-        PAPI_HOSTNAME="${settings.papi_hostname}"
-        PAPI_TOKEN="${settings.papi_token}"
-        VAULT_HOSTNAME="${settings.vault_hostname}"
-        VAULT_TOKEN="${settings.vault_token}"
-        MAIL="${user.email}"
-        SHORTDOMAIN="paas_${env.shortdomain}"
 
   vaultAccount:
     - script: |
@@ -240,10 +218,10 @@ actions:
 
     - if ( "${response.errOut}" != "" || "${response.out}" == "" ):
         return:
-        type: success
+        type: error
         message: "Generated vault credentials are not working"
 
-    - log: Store vault creds in en vars
+    - log: Store vault creds in env vars
     - env.control.AddContainerEnvVars[bl]:
       vars: {
         "VAULT_HOSTNAME": "${settings.vault_hostname}",
