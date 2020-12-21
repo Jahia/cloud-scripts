@@ -21,6 +21,7 @@ onInstall:
           return {'result': 0}
       }
   - if (nodes.proc):  # Jahia
+      - vaultAccount # PAAS-1292
       - fixHaproxyHealthcheckUrl # PAAS-1308
       - allowYellowHaproxyHealthcheck # PAAS-1324
       - jahiaPropertiesToEnvVars # PAAS-1230
@@ -146,3 +147,104 @@ actions:
       sed -i "/$pattern/i\\$insert_line_1\n$insert_line_2\n$insert_line_3\n" /etc/haproxy/haproxy.cfg.d/00-global.cfg
       service haproxy reload
     user: root
+
+  vaultAccount:
+    - script: |
+        const envVars = jelastic.env.control.GetContainerEnvVars(
+            "${env.envName}",
+            session,
+            "${nodes.bl.first.id}"
+        );
+        return {'result': 0, 'done': "VAULT_SECRET_ID" in envVars.object}
+    - if ("${response.done}" == "false"):
+        setupVaultAccount
+
+  setupVaultAccount:
+    - log: Generate vault credentials
+    - cmd[proc]: |-
+        yum install -y jq > /dev/null
+
+        PAPI_HOSTNAME="${settings.papi_hostname}"
+        PAPI_TOKEN="${settings.papi_token}"
+        VAULT_HOSTNAME="${settings.vault_hostname}"
+        VAULT_TOKEN="${settings.vault_token}"
+        MAIL="${user.email}"
+        SHORTDOMAIN="paas_${env.shortdomain}"
+
+        ORGANISATION=$(curl -s -H "X-PAPI-KEY:$PAPI_TOKEN" https://$PAPI_HOSTNAME/api/v1/paas-organization?jelastic_login=$MAIL | jq -r .[0].name)
+
+        VAULT_CURL_CONSTS="-s -H X-Vault-Token:$VAULT_TOKEN https://$VAULT_HOSTNAME/v1"
+        # Create the entity
+        entity_id=$(curl $VAULT_CURL_CONSTS/identity/entity -XPOST -d "{\"name\": \"$SHORTDOMAIN\",\"metadata\": {\"customer\": \"$ORGANISATION\"},\"policies\": \"paas_environment\"}" | jq -r .data.id)
+
+        # Create approle
+        VAULT_CURL_APPROLE="$VAULT_CURL_CONSTS/auth/approle/role/$SHORTDOMAIN"
+        curl $VAULT_CURL_APPROLE -XPOST
+        role_id=$(curl $VAULT_CURL_APPROLE/role-id | jq -r .data.role_id)
+
+        # Fetch approle authmethod ID
+        approle_auth_accessor=$(curl $VAULT_CURL_CONSTS/sys/auth | jq -r '."approle/".accessor')
+
+        # Bind approle to the entity
+        approle_binding=$(curl $VAULT_CURL_CONSTS/identity/entity-alias -XPOST -d "{\"name\": \"$role_id\", \"canonical_id\":\"$entity_id\", \"mount_accessor\":\"$approle_auth_accessor\"}")
+
+        secret_id=$(curl $VAULT_CURL_APPROLE/secret-id -XPOST | jq -r .data.secret_id)
+        echo "$role_id,$secret_id"
+      user: root
+
+    - log: Check that received data are what we are expecting
+    - script: |-
+        output = "${response.out}";
+
+        match = /^[0-9a-z\-]+,[0-9a-z\-]+$/.exec(output);
+        if (match == null)
+          return {'result':1, "error": "wrong secret_id or app_id"};
+
+        splitted_output = output.split(",")
+
+        return {
+          'result': 0,
+          "role_id":splitted_output[0],
+          'secret_id':splitted_output[1]
+        }
+
+    - setGlobals:
+        role_id: ${response.role_id}
+        secret_id: ${response.secret_id}
+
+    - log: Check that credentials are actually working
+    - cmd[${nodes.bl.first.id}]: |-
+        curl -s -XPOST https://${settings.vault_hostname}/v1/auth/approle/login --data '{"secret_id": "${globals.secret_id}", "role_id": "${globals.role_id}"}' | jq -r .auth.policies | grep paas_environment
+
+    - if ( "${response.errOut}" != "" || "${response.out}" == "" ):
+        return:
+        type: error
+        message: "Generated vault credentials are not working"
+
+    - log: Store vault creds in env vars
+    - env.control.AddContainerEnvVars[bl]:
+      vars: {
+        "VAULT_HOSTNAME": "${settings.vault_hostname}",
+        "VAULT_SECRET_ID": "${globals.secret_id}",
+        "VAULT_ROLE_ID": "${globals.role_id}"
+      }
+
+
+settings:
+  fields:
+    - name: vault_token
+      type: string
+      caption: Vault token to perform operations
+      required: true
+    - name: vault_hostname
+      type: string
+      caption: vault dns
+      required: true
+    - name: papi_token
+      type: string
+      caption: papi token to perform operations
+      required: true
+    - name: papi_hostname
+      type: string
+      caption: papi dns
+      required: true
