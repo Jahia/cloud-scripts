@@ -1,0 +1,28 @@
+---
+type: update
+version: 1.5.2
+name: Augmented Search - Redeploy Elasticsearch nodes
+logo: /images/jahia-logo-70x70.png
+id: augsearch-redeploy-es-nodes
+description: |
+  This package allows to handle redeploy of Elasticsearch nodes for Augmented Search.
+  * "Environment name" = Jahia environment
+  * "AS environment name" = jCustomer environment used for Augmented Search
+
+mixins:
+  - ../galera-nodes/mixins-galera.yml
+
+onInstall:
+  - enableFullReadOnlyOnCluster
+  - install:
+      jps: "${baseUrl}/../es-nodes/redeploy-es-nodes.yml"
+      envName: ${settings.augSearchEnvName}
+  - disableFullReadOnlyOnCluster
+
+settings:
+  fields:
+    - caption: AS environment name
+      type: envlist
+      valueField: shortdomain
+      name: augSearchEnvName
+      disableInactive: true
