@@ -1,7 +1,7 @@
 ---
 type: update
 version: 1.5.2
-name: Jahia - Digital Experience Manager
+name: jCustomer - Redeploy Elasticsearch nodes
 logo: /images/jahia-logo-70x70.png
 id: redeploy-es-nodes
 

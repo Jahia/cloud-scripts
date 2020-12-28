@@ -1,7 +1,7 @@
 ---
 type: update
 version: 1.5.2
-name: Jahia - Digital Experience Manager
+name: Jahia - Redeploy Galera nodes
 logo: /images/jahia-logo-70x70.png
 id: redeploy-galera-nodes
 
