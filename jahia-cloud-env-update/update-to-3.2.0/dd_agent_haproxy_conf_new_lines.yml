@@ -1,5 +1,0 @@
-  - type: file
-    path: /var/log/haproxy/haproxy-status.log
-    service: haproxy
-    source: haproxy
-    sourcecategory: haproxy_status
