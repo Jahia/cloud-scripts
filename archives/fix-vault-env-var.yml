@@ -1,0 +1,12 @@
+---
+type: update
+version: 1.5.2
+name: fix VAULT_CLUSTER_URL env var
+logo: /images/jahia-logo-70x70.png
+id: fix-vault-env-var
+
+onInstall:
+  - api [bl]: env.control.AddContainerEnvVars
+    vars: {"VAULT_CLUSTER_URL": "https://vault.cloud-core.jahia.com"}
+  - api [bl]: env.control.RemoveContainerEnvVars
+    vars: ["VAULT_HOSTNAME"]
