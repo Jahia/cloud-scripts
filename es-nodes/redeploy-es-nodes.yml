@@ -21,20 +21,28 @@ actions:
       user: root
 
   # Every second, we check cluster health. If curl fails with a 10s timeout, then exit 1.
-  # Until status is green & actual nodes number equals nodes.es.length, we check that the
-  # number of active shards is increasing (meaning the node is not fully initialized yet).
-  # If it is still not after 10s, exit 1.
+  # For 3-nodes clusters, until status is green & actual nodes number equals nodes.es.length,
+  # we check that the number of active shards is increasing (meaning the node is not fully
+  # initialized yet). If it is still not after 10s, exit 1.
+  # For single node ES, we check green or yellow status
   checkEsClusterStatus:
     - installJq: ${nodes.es.first.id}
     - cmd[${nodes.es.first.id}]: |-
         health_file="/tmp/es_cluster_health.json"
         i=0
         prev_active_shards=0
-        while [ $i -lt 10 ]; do
+        total_nodes_count=${nodes.es.length}
+        # Single ES node: we check green or yellow status
+        healthcheck_condition='[ $status = "\"green\"" ] || [ $status = "\"yellow\"" ]'
+        # 3-nodes cluster: we check green status only
+        if [ ${total_nodes_count} -gt 1 ]; then
+          healthcheck_condition='[ $status = "\"green\"" ] && [ $real_nodes_count -eq ${total_nodes_count} ]'
+        fi
+        while [ $i -lt 20 ]; do
           curl -Ssf "es:9200/_cluster/health?timeout=10s" > $health_file || (rm -f $health_file; exit 1)
           status=$(cat $health_file | jq ".status")
           real_nodes_count=$(cat $health_file | jq ".number_of_nodes")
-          if ([ $status = "\"green\"" ] || [ $status = "\"yellow\"" ]) && [ $real_nodes_count -eq ${nodes.es.length} ]; then
+          if eval $healthcheck_condition; then
             exit 0
           fi
           active_shards=$(cat $health_file | jq ".active_shards")
