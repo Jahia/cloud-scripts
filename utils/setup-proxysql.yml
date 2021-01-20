@@ -58,6 +58,7 @@ actions:
         ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_servers_diffs_before_sync';"
         ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_users_diffs_before_sync';"
         ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_proxysql_servers_diffs_before_sync';"
+        ${globals.sql} -e "UPDATE global_variables SET variable_value=0 WHERE variable_name='mysql-auto_increment_delay_multiplex';"
         ${globals.sql} -e "load admin variables to RUNTIME;"
         ${globals.sql} -e "save admin variables to disk;"
         ${globals.sql} -e "load mysql variables to RUNTIME;"
