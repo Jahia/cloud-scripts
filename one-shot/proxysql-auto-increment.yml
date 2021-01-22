@@ -1,0 +1,12 @@
+---
+type: update
+version: 1.5.2
+name: Jahia - ProxySQL auto increment
+logo: /images/jahia-logo-70x70.png
+id: proxysql-auto-increment
+
+onInstall:
+  - cmd[cp,proc]: |-
+      mysql -h 127.0.0.1 -P 6032 -u admin -padmin -e "UPDATE global_variables SET variable_value=0 WHERE variable_name='mysql-auto_increment_delay_multiplex';"
+      mysql -h 127.0.0.1 -P 6032 -u admin -padmin -e "LOAD MYSQL VARIABLES TO RUNTIME;"
+      mysql -h 127.0.0.1 -P 6032 -u admin -padmin -e "SAVE MYSQL VARIABLES TO DISK;"

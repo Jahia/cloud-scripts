@@ -58,6 +58,7 @@ actions:
         ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_servers_diffs_before_sync';"
         ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_mysql_users_diffs_before_sync';"
         ${globals.sql} -e "update global_variables set variable_value=3 where variable_name='admin-cluster_proxysql_servers_diffs_before_sync';"
+        ${globals.sql} -e "UPDATE global_variables SET variable_value=0 WHERE variable_name='mysql-auto_increment_delay_multiplex';"
         ${globals.sql} -e "load admin variables to RUNTIME;"
         ${globals.sql} -e "save admin variables to disk;"
         ${globals.sql} -e "load mysql variables to RUNTIME;"
@@ -102,10 +103,6 @@ actions:
         ${globals.sql} -e "INSERT INTO mysql_servers(hostgroup_id,hostname,port, max_connections) VALUES (2,'galera_3',3306, 30);"
         ${globals.sql} -e "LOAD MYSQL SERVERS TO RUNTIME;"
         ${globals.sql} -e "SAVE MYSQL SERVERS TO DISK;"
-        ${globals.sql} -e "INSERT INTO mysql_query_rules (active, match_digest, destination_hostgroup, apply) VALUES (0, '^SELECT.*',4, 0);"
-        ${globals.sql} -e "INSERT INTO mysql_query_rules (active, match_digest, destination_hostgroup, apply) VALUES (1, '^SELECT.* FOR UPDATE',2, 1);"
-        ${globals.sql} -e "LOAD MYSQL QUERY RULES TO RUNTIME;"
-        ${globals.sql} -e "SAVE MYSQL QUERY RULES TO DISK;"
         i=60
         while ! sleep 1 && ${globals.sql} -e "select count(*) from runtime_mysql_servers where hostgroup_id in (3,4) and status = 'SHUNNED';" | grep -s 0; do
           ((i=i-1))
