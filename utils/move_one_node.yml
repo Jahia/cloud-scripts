@@ -1,0 +1,97 @@
+---
+type: install
+version: 1.5.2
+name: testlfu
+logo: /images/jahia-logo-70x70.png
+id: testlfu
+
+
+onBeforeInit: |-
+  hnArray = jelastic.administration.cluster.gethdnodes("cluster", session).array
+  envsArray = jelastic.environment.control.getenvs("appstore", session)["infos"]
+
+  var hnList = []
+  var listArray = {}
+  var nodesArray = {}
+
+  var hgArray = {}
+
+  for (var i = 0; i < hnArray.length; i++) {
+    if (hnArray[i].hostname.match(/^hn[0-9]/)) {
+      listArray[hnArray[i].id] = hnArray[i].hostname
+    }
+  }
+
+  for (var i = 0; i < envsArray.length; i++) {
+    envname = envsArray[i].env.envName
+
+    for (var j = 0; j < envsArray[i].nodes.length; j++) {
+      nodegroup = envsArray[i].nodes[j].nodeGroup
+      nodeid = envsArray[i].nodes[j].id
+
+      caption = envname + " " + nodegroup + " " + nodeid
+      nodesArray[nodeid] = caption
+    }
+  }
+
+  return {
+    result: 0,
+    settings : {
+      fields: [
+        {
+          type: "list",
+          name: "nodeID",
+          caption: "NodeID to move",
+          values: nodesArray
+        },
+        {
+          type: "list",
+          caption: "move to",
+          name: "hnTarget",
+          values: listArray
+        },
+        {
+          type: "toggle",
+          caption: "Do you want FRO ?",
+          name: "fro",
+          value: false,
+          showIf: {
+            true: [
+              {
+                type: "envlist",
+                caption: "FRO on which env ?",
+                name: "envFRO",
+                valueField: "shortdomain"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+
+onInstall:
+  - log: "MOVE NODE ID ${settings.nodeID} TO HN ID ${settings.hnTarget}"
+  - if(${settings.fro}):
+      - froStatus:
+          enableFRO: true
+  - moveNode
+  - if(${settings.fro}):
+      - froStatus:
+          enableFRO: false
+
+actions:
+  moveNode:
+    - administration.cluster.migratenode [${settings.nodeID}]:
+      appid: cluster
+      hdnodeid: ${settings.hnTarget}
+      isonline: false
+
+  froStatus:
+    - log: "## Set FRO mode on ${settings.envFRO} to ${this.enableFRO} by using ${baseUrl}/jahia-full-read-only.yml"
+    - install:
+        jps: "${baseUrl}/jahia-full-read-only.yml"
+        settings:
+          enableFRO: ${this.enableFRO}
+        params:
+          envName: "${settings.envFRO}"
