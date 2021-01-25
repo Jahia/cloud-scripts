@@ -1,0 +1,46 @@
+---
+type: install
+version: 1.5.2
+name: Stop or start an env
+logo: /images/jahia-logo-70x70.png
+id: stop-start-env
+
+onBeforeInit: |-
+  envsArray = jelastic.environment.control.getenvs("appstore", session)["infos"]
+
+  var envArray = {}
+
+  for (var i = 0; i < envsArray.length; i++) {
+    envname = envsArray[i].env.envName
+    envArray[envname] = envname
+  }
+
+  return {
+    result: 0,
+    settings : {
+      fields: [
+        {
+          type: "toggle",
+          caption: "Enable for stop, start otherwise",
+          name: "stop",
+          value: false,
+        },
+        {
+          type: "list",
+          name: "env",
+          caption: "node's env",
+          values: envArray
+        }
+      ]
+    }
+  }
+
+onInstall:
+  - if (${settings.stop}):
+      - api: environment.control.stopenv
+        params:
+          envName: "${settings.env}"
+  - else:
+      - api: environment.control.startenv
+        params:
+          envName: "${settings.env}"

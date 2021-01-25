@@ -1,20 +1,19 @@
 ---
 type: install
 version: 1.5.2
-name: testlfu
+name: Move one node to another HN
 logo: /images/jahia-logo-70x70.png
-id: testlfu
+id: move-node-between-hn
 
 
 onBeforeInit: |-
   hnArray = jelastic.administration.cluster.gethdnodes("cluster", session).array
   envsArray = jelastic.environment.control.getenvs("appstore", session)["infos"]
 
-  var hnList = []
   var listArray = {}
   var nodesArray = {}
-
-  var hgArray = {}
+  var envArray = {}
+  var ngArray = {}
 
   for (var i = 0; i < hnArray.length; i++) {
     if (hnArray[i].hostname.match(/^hn[0-9]/)) {
@@ -31,6 +30,12 @@ onBeforeInit: |-
 
       caption = envname + " " + nodegroup + " " + nodeid
       nodesArray[nodeid] = caption
+      var e = {}
+      e[envname] = envname
+      envArray[nodeid] = e
+      var g = {}
+      g[nodegroup] = nodegroup
+      ngArray[nodeid] = g
     }
   }
 
@@ -43,6 +48,30 @@ onBeforeInit: |-
           name: "nodeID",
           caption: "NodeID to move",
           values: nodesArray
+        },
+        {
+          type: "toggle",
+          caption: "Do you want stop node's env first ?",
+          name: "stop",
+          value: false,
+        },
+        {
+          type: "list",
+          name: "nodeEnv",
+          caption: "node's env",
+          dependsOn: {
+            nodeID:
+              envArray
+          }
+        },
+        {
+          type: "list",
+          name: "nodeHg",
+          caption: "node's hostgroup",
+          dependsOn: {
+            nodeID:
+              ngArray
+          }
         },
         {
           type: "list",
@@ -71,11 +100,19 @@ onBeforeInit: |-
   }
 
 onInstall:
-  - log: "MOVE NODE ID ${settings.nodeID} TO HN ID ${settings.hnTarget}"
   - if(${settings.fro}):
       - froStatus:
           enableFRO: true
+  - if(${settings.stop}):
+      - log: "Stopping env ${settings.nodeEnv}"
+      - envStatus:
+          stopEnv: true
+  - log: "Moving nodeID ${settings.nodeID} (from ${settings.nodeEnv}'s ${settings.nodeHg}) to HN ID ${settings.hnTarget}"
   - moveNode
+  - if(${settings.stop}):
+      - log: "Starting env ${settings.nodeEnv}"
+      - envStatus:
+          stopEnv: false
   - if(${settings.fro}):
       - froStatus:
           enableFRO: false
@@ -88,10 +125,17 @@ actions:
       isonline: false
 
   froStatus:
-    - log: "## Set FRO mode on ${settings.envFRO} to ${this.enableFRO} by using ${baseUrl}/jahia-full-read-only.yml"
+    - log: "## Set FRO mode on ${settings.envFRO} to ${this.enableFRO}"
     - install:
         jps: "${baseUrl}/jahia-full-read-only.yml"
         settings:
           enableFRO: ${this.enableFRO}
         params:
           envName: "${settings.envFRO}"
+
+  envStatus:
+    - install:
+        jps: "${baseUrl}/stop-start-env.yml"
+        settings:
+          stop: ${this.stopEnv}
+          env: "${settings.nodeEnv}"
