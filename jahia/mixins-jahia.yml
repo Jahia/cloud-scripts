@@ -11,12 +11,12 @@ actions:
     - setGlobals:
         RO: "${response.out}"
 
-  switch-fullreadonly:
+  switch_full_readonly:
     - log: "switch full read mode to ${this.fullreadmode} on nodegroup ${this.group}"
     - cmd[${this.group}]: |-
           ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only ${this.fullreadmode}
 
-  getJahiaVersion:
+  get_jahia_version:
     - log: "Get jahia version"
     - script: |-
         var resp = jelastic.env.control.GetEnvInfo('${env.envName}', session)
@@ -58,35 +58,35 @@ actions:
         sed '/^abricot:/d' -i /data/digital-factory-data/karaf/etc/keys.properties
         sed 's,\(sshRealm\s*=\s*\)karaf,\1jahia,' -i /data/digital-factory-data/karaf/etc/org.apache.karaf.shell.cfg
 
-  enableFullReadOnlyOnCluster:
-    - getJahiaVersion
+  enable_full_readonly_on_cluster:
+    - get_jahia_version
 
     - enable_karaf_login: proc
     - is_fullreadonly_enabled
 
     - if(!${globals.RO}):
-        - switch-fullreadonly:
+        - switch_full_readonly:
             group: "proc"
             fullreadmode: "ON"
 
         - if(globals.jahiaVersion < '7.3.3.0'):
             - enable_karaf_login: cp
-            - switch-fullreadonly:
+            - switch_full_readonly:
                 group: "cp"
                 fullreadmode: "ON"
 
-  disableFullReadOnlyOnCluster:
-    - getJahiaVersion
+  disable_full_readonly_on_cluster:
+    - get_jahia_version
     - is_fullreadonly_enabled
 
     - if(${globals.RO}):
-        - switch-fullreadonly:
+        - switch_full_readonly:
             group: "proc"
             fullreadmode: "OFF"
         - disable_karaf_login: proc
 
         - if(globals.jahiaVersion < '7.3.3.0'):
-            - switch-fullreadonly:
+            - switch_full_readonly:
                 group: "cp"
                 fullreadmode: "OFF"
             - disable_karaf_login: cp

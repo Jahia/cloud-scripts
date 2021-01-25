@@ -10,9 +10,9 @@ mixins:
 
 onInstall:
   - if (settings.enableFRO):
-      - enableFullReadOnlyOnCluster
+      - enable_full_readonly_on_cluster
   - else:
-      - disableFullReadOnlyOnCluster
+      - disable_full_readonly_on_cluster
 
 settings:
   fields:
