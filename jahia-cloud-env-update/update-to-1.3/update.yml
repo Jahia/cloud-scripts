@@ -71,7 +71,7 @@ actions:
         sed -i "s#gc::time#gc:$new_option:time#g" /opt/tomcat/conf/tomcat-env.sh
 
   setJDBCToSequencialMode:
-    #  PAAS-874
+    # PAAS-874
     - cmd[proc, cp]: |-
         sed 's/loadbalance/sequential/' -i /opt/tomcat/webapps/ROOT/META-INF/context.xml
 
