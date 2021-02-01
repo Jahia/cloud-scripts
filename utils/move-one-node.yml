@@ -126,12 +126,18 @@ actions:
 
   froStatus:
     - log: "## Set FRO mode on ${settings.envFRO} to ${this.enableFRO}"
-    - install:
-        jps: "${baseUrl}/jahia-full-read-only.yml"
-        settings:
-          enableFRO: ${this.enableFRO}
-        params:
-          envName: "${settings.envFRO}"
+    - if(${this.enableFRO}):
+        - install:
+            jps: "${baseUrl}/jahia-full-read-only.yml"
+            settings:
+              enableFRO: ${this.enableFRO}
+            params:
+              envName: "${settings.envFRO}"
+    - else:
+        - install:
+            jps: "${baseUrl}/jahia-full-read-only.yml"
+            params:
+              envName: "${settings.envFRO}"
 
   envStatus:
     - install:
