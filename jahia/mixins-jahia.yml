@@ -2,6 +2,17 @@
 actions:
   is_fullreadonly_enabled:
     - cmd[proc]: |-
+        i=1
+        it=128
+        until (ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no date); do
+          echo "karaf ssh login not updated yet (iteration $i/$it)"
+          if [ $i -ge $it ]; then
+            echo "Too long to start, something is wrong here... EXITING"
+            exit 1
+          fi
+          ((i++))
+          sleep 1
+        done
         RO_ON=$(ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only | grep -e Current -e local | grep ON)
         if [ "$RO_ON" == "" ]; then
           echo false
