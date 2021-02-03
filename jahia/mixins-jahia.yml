@@ -4,8 +4,7 @@ actions:
     - cmd[proc]: |-
         i=1
         it=128
-        until (ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no date); do
-          echo "karaf ssh login not updated yet (iteration $i/$it)"
+        until (ssh abricot@localhost -p 8101 -i /tmp/abricot -o StrictHostKeyChecking=no full-read-only > /dev/null); do
           if [ $i -ge $it ]; then
             echo "Too long to start, something is wrong here... EXITING"
             exit 1
