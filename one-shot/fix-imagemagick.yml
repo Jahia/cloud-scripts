@@ -1,0 +1,21 @@
+---
+type: update
+version: 1.5.2
+name: fix-imagemagick
+logo: /images/jahia-logo-70x70.png
+id: fix-imagemagick
+
+onInstall:
+  - cmd[cp,proc]: |-
+      for f in animate compare composite convert display identify \
+               import magick magick-script mogrify montage stream; do
+        if [ ! -h /usr/bin/$f ]; then
+          ln -s /opt/magick/bin/$f /usr/bin/$f
+        else
+          continue
+        fi
+      done
+    user: root
+  - env.control.AddContainerEnvVars[cp,proc]:
+      vars:
+        jahia_cfg_imageMagickPath: /opt/magick/bin
