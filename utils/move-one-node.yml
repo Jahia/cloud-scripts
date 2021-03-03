@@ -6,6 +6,11 @@ logo: /images/jahia-logo-70x70.png
 id: move-node-between-hn
 
 
+# In order to update theses HNs lists, only way I found is
+# to use jelastic.administration.cluster.gethdnodes
+# with an admin user :/
+# id is jelastic.administration.cluster.gethdnodes.[*].id
+
 onBeforeInit: |-
   var devHNList = {
     "7": "hn01 - AWS - eu-west-1 - m5.2xlarge",
