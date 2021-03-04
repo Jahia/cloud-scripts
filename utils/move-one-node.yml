@@ -47,6 +47,8 @@ onBeforeInit: |-
           type: "list",
           name: "nodeID",
           caption: "NodeID to move",
+          editable: true,
+          required: true,
           values: nodesArray
         },
         {
@@ -77,6 +79,7 @@ onBeforeInit: |-
           type: "list",
           caption: "move to",
           name: "hnTarget",
+          required: true,
           values: listArray
         },
         {
