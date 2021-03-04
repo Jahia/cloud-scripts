@@ -19,7 +19,7 @@ onBeforeInit: |-
     "14": "hn04 - AWS - eu-west-1 - m5.2xlarge",
     "15": "hn05 - AWS - eu-west-1 - m5.2xlarge",
     "18": "hn07 - Azure - North Europe - Standard D8s v3",
-    "23": "hn06 - Azure - North Europe - Standard D8s v3"
+    "23": "hn06 - Azure - North Europe - Standard D8s v3",
   }
 
   var prodHNList = {
@@ -46,7 +46,7 @@ onBeforeInit: |-
     "37": "hn21 - OVH - fr-gra2 - infra-3",
     "38": "hn22 - OVH - fr-gra2 - infra-3",
     "42": "hn23 - OVH - fr-gra2 - infra-3",
-    "45": "hn24 - AWS - eu-west-1 - i3en.2xlarge"
+    "45": "hn24 - AWS - eu-west-1 - i3en.2xlarge",
   }
 
   envsArray = jelastic.environment.control.getenvs("appstore", session)["infos"]
