@@ -1,0 +1,22 @@
+---
+type: update
+version: 1.5.2
+name: Fix datadog-agent JVM metrics
+logo: /images/jahia-logo-70x70.png
+id: fix-dd-agent-jvm-metrics
+
+onInstall:
+  - setGlobals:
+      scope: "cp, proc"
+  - if (nodes.es):
+      - setGlobals:
+          scope: "cp"
+  - cmd [${globals.scope}]: |-
+      [ -f /etc/systemd/system/datadog-agent.service.d/override.conf ] && exit 0
+      mkdir -p /etc/systemd/system/datadog-agent.service.d
+      cat > /etc/systemd/system/datadog-agent.service.d/override.conf <<EOF
+      [Service]
+      EnvironmentFile=-/.jelenv
+      EOF
+      systemctl daemon-reload && systemctl restart datadog-agent
+    user: root
