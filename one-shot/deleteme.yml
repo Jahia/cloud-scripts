@@ -1,0 +1,9 @@
+---
+type: update
+version: 1.5.2
+name: osef
+logo: /images/jahia-logo-70x70.png
+id: osef
+
+onInstall:
+  log: ${settings.test} " ok"
